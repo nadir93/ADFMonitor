@@ -11,10 +11,45 @@ var client = new elasticsearch.Client({
   log: LogClass
     //'trace'
 });
-var logger = new LogClass({
-  logName: 'Notifier',
-  level: 'info'
-});
+var bunyan = require("bunyan"),
+  logger = new LogClass({
+    logName: 'Notifier',
+    level: 'info'
+  });
+
+var BunyanSlack = require('bunyan-slack'),
+  slackLogger = bunyan.createLogger({
+    name: "Notifier",
+    stream: new BunyanSlack({
+      webhook_url: "https://hooks.slack.com/services/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",
+      channel: "#monitoring",
+      username: "에이디플로우알림이",
+      customFormatter: function(record, levelName) {
+        return {
+          attachments: [{
+            fallback: "Required plain-text summary of the attachment.",
+            color: 'dander',
+            pretext: "Optional text that appears above the attachment block",
+            author_name: "Seth Pollack",
+            author_link: "http://sethpollack.net",
+            author_icon: "http://www.gravatar.com/avatar/3f5ce68fb8b38a5e08e7abe9ac0a34f1?s=200",
+            title: "Slack API Documentation",
+            title_link: "https://api.slack.com/",
+            text: "Optional text that appears within the attachment",
+            fields: [{
+              title: "We have a new " + levelName + " log",
+              value: record.msg,
+              short: true
+            }]
+          }]
+        };
+      }
+    }),
+    level: "error"
+  });
+slackLogger.error("NotifierInitialized");
+
+
 var autoMark, autoReconnect, slack, token;
 token = process.env.TOKEN || config.get('slack.token');
 autoReconnect = true;
@@ -86,7 +121,7 @@ slack.on('message', function(message) {
 });
 
 slack.on('error', function(error) {
-  return logger.error("Error: " + util.inspect(error));
+  return slackLogger.error("Error: " + util.inspect(error));
 });
 slack.login();
 
@@ -154,6 +189,7 @@ function notify(host, type, grade, value, timestamp) {
   if (chl) {
     var msg = new Message(slack, {
       username: '에이디플로우알림이',
+      icon_emoji: ':adflowalert:',
       attachments: [{
         "fallback": host + ' ' + ((type == 'cpu' || type == 'memory') ? type + '사용량' : type) + value,
         //"pretext": resp.aggregations.host.buckets[0].key,
@@ -198,7 +234,7 @@ function notify(host, type, grade, value, timestamp) {
       }
     }, function(error, response) {
       if (error) {
-        logger.trace(error.message);
+        slackLogger.error(error.message);
         // Alert slack
       } else {
         logger.info(response, '알람전송이기록되었습니다');

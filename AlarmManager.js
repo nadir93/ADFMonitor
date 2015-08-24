@@ -9,10 +9,43 @@ var client = new elasticsearch.Client({
     //'trace'
 });
 
-var logger = new LogClass({
-  logName: 'AlarmManager',
-  level: 'info'
-});
+var bunyan = require("bunyan"),
+  logger = new LogClass({
+    logName: 'AlarmManager',
+    level: 'info'
+  });
+
+var BunyanSlack = require('bunyan-slack'),
+  slackLogger = bunyan.createLogger({
+    name: "AlarmManager",
+    stream: new BunyanSlack({
+      webhook_url: "https://hooks.slack.com/services/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",
+      channel: "#monitoring",
+      username: "에이디플로우알림이",
+      customFormatter: function(record, levelName) {
+        return {
+          attachments: [{
+            fallback: "Required plain-text summary of the attachment.",
+            color: 'dander',
+            pretext: "Optional text that appears above the attachment block",
+            author_name: "Seth Pollack",
+            author_link: "http://sethpollack.net",
+            author_icon: "http://www.gravatar.com/avatar/3f5ce68fb8b38a5e08e7abe9ac0a34f1?s=200",
+            title: "Slack API Documentation",
+            title_link: "https://api.slack.com/",
+            text: "Optional text that appears within the attachment",
+            fields: [{
+              title: "We have a new " + levelName + " log",
+              value: record.msg,
+              short: true
+            }]
+          }]
+        };
+      }
+    }),
+    level: "error"
+  });
+slackLogger.error("AlarmManagerInitialized");
 var serverList = config.get('serverList');
 
 // index용 날짜 포맷
@@ -34,7 +67,7 @@ schedule.scheduleJob(config.get('ping.schedule') /* 30초마다 */ , function() 
     hello: "elasticsearch!"
   }, function(error, response) {
     if (error) {
-      logger.trace('검색엔진에문제가발생하였습니다');
+      slackLogger.error('검색엔진에문제가발생하였습니다');
       // Alert slack
     } else {
       logger.info('검색엔진이정상입니다');
@@ -64,7 +97,7 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
         logger.info({
           host: hosts[hostId].key,
           hostId: hostId
-        }, '서버가존재합니다');
+        }, '점검된서버');
         temp.push(hosts[hostId].key);
       }
       for (id in serverList) {
@@ -82,7 +115,7 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
       }
     },
     function(err) {
-      logger.trace(err.message);
+      slackLogger.error(err.message);
       //문제발생 slack으로 푸시
     });
 });
@@ -196,7 +229,7 @@ function alert(host, type, value, grade, status) {
     }
   }, function(error, response) {
     if (error) {
-      logger.trace(error.message);
+      slackLogger.error(error.message);
       // Alert slack
     } else {
       logger.info(response, '알람생성결과');
@@ -211,8 +244,10 @@ function bytesToSize(bytes) {
   return Math.round(bytes / Math.pow(1024, i), 2) + sizes[i];
 };
 
-//todo
-// 1분간 데이타가 없을경우 offline 이벤트를 발생시킨다.
-// 하루 처리 통계치를 슬랙으로 저녁 6시쯤 전송한다.
-// delete indices - 일정시간이상 지나는 인덱스 삭제
-// logstash 시간 체크해볼것 gmt + 9
+// todo
+// 0. bunyan - slack 으로 오류시 푸시받게 구현
+// 1. 표본데이타가 너무적은경우 alert을 스킵하게해야함 - 예) 부팅하자마자 high cpu usage는 의미가 없음
+// 2. online event 발생
+// 3. 하루 처리 통계치를 슬랙으로 저녁 6시쯤 전송한다.
+// 4. delete indices - 일정시간이상 지나는 인덱스 삭제
+// 5. logstash 시간 체크해볼것 gmt + 9
