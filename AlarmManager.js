@@ -56,6 +56,9 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
         unit: 'ms'
       }, '오프라인점검이완료되었습니다');
       var hosts = resp.aggregations.host.buckets;
+      logger.info({
+        count: hosts.length
+      }, '점검된총서버수');
       var temp = [];
       for (hostId in hosts) {
         logger.info({

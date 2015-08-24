@@ -177,7 +177,12 @@ function notify(host, type, grade, value, timestamp) {
       }]
     });
     chl.postMessage(msg);
-    logger.info('알람이전송되었습니다');
+    logger.info({
+      host: host,
+      type: type,
+      grade: grade,
+      value: value
+    }, '알람이전송되었습니다');
     //create notified record
     var d = new Date();
     client.create({
