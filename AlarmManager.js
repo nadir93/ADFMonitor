@@ -10,6 +10,7 @@ var client = new elasticsearch.Client({
 });
 
 var logger = new LogClass();
+var serverList = config.get('serverList');
 
 // index용 날짜 포맷
 Date.prototype.yyyymmdd = function() {
@@ -20,7 +21,8 @@ Date.prototype.yyyymmdd = function() {
 };
 
 // healthCheck elasticsearch
-schedule.scheduleJob('*/30 * * * * *' /* 30초마다 */ , function() {
+logger.info('검색엔진핑주기=' + config.get('ping.schedule'));
+schedule.scheduleJob(config.get('ping.schedule') /* 30초마다 */ , function() {
   client.ping({
     // ping usually has a 3000ms timeout
     requestTimeout: Infinity,
@@ -29,34 +31,34 @@ schedule.scheduleJob('*/30 * * * * *' /* 30초마다 */ , function() {
     hello: "elasticsearch!"
   }, function(error, response) {
     if (error) {
-      logger.trace('elasticsearchDown!!!');
+      logger.trace('검색엔진에문제가발생하였습니다');
       // Alert slack
     } else {
-      logger.info('elasticsearchIsAlive');
+      logger.info('검색엔진이정상입니다');
     }
   });
 });
 
 // collectd agent offline
-schedule.scheduleJob('*/30 * * * * *' /* 1분마다 */ , function() {
+logger.info('오프라인점검주기=' + config.get('offline.schedule'));
+schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function() {
   client.search({
     index: 'logstash-*',
     //type: 'tweets',
-    body: agentOfflineQuery
+    body: config.get('offline.query')
   }).then(function(resp) {
       // elasticsearch에 ALERT데이타를 입력
       logger.info({
-        queryName: 'offLineTest',
-        elapsedtime: resp.took,
+        수행시간: resp.took,
         unit: 'ms'
-      });
+      }, '오프라인점검이완료되었습니다');
       var hosts = resp.aggregations.host.buckets;
       var temp = [];
       for (hostId in hosts) {
         logger.info({
           host: hosts[hostId].key,
           hostId: hostId
-        }, 'serverExist');
+        }, '서버가존재합니다');
         temp.push(hosts[hostId].key);
       }
       for (id in serverList) {
@@ -67,7 +69,7 @@ schedule.scheduleJob('*/30 * * * * *' /* 1분마다 */ , function() {
           }
         }
         if (!exists) {
-          logger.error(serverList[id] + '서버에 collectd agent가 offline 상태입니다');
+          logger.error(serverList[id] + '서버agent가offline입니다');
           //send alert
           alert(serverList[id], 'offline', '', 'danger', 'created');
         }
@@ -80,19 +82,19 @@ schedule.scheduleJob('*/30 * * * * *' /* 1분마다 */ , function() {
 });
 
 // cpu& memory
-schedule.scheduleJob('*/60 * * * * *' /* 1분마다 */ , function() {
+logger.info('cpu&memory점검주기=' + config.get('cpu&memory.schedule'));
+schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */ , function() {
   //console.log('The answer to life, the universe, and everything!'+new Date());
   client.search({
     index: 'logstash-*',
     //type: 'tweets',
-    body: cpuAndMemoryQuery
+    body: config.get('cpu&memory.query')
   }).then(function(resp) {
       // elasticsearch에 ALERT데이타를 입력
       logger.info({
-        queryName: 'cpu&memory',
         elapsedtime: resp.took,
         unit: 'ms'
-      });
+      }, 'cpu&memory점검이완료되었습니다');
       var hosts = resp.aggregations.host.buckets;
       for (hostId in hosts) {
         logger.debug('호스트=' + hosts[hostId].key);
@@ -152,21 +154,21 @@ function processCPU(host, type, instance) {
     cpu사용량: cpuUsage
   });
 
-  if (idle < 10) {
+  if (idle < config.get('cpu.danger')) {
     logger.info({
       host: host,
       grade: 'danger',
       status: 'created',
       value: cpuUsage
-    });
+    }, 'cpu위험발생');
     alert(host, type, cpuUsage, 'danger', 'created');
-  } else if (idle < 30) {
+  } else if (idle < config.get('cpu.warning')) {
     logger.info({
       host: host,
-      grade: 'danger',
+      grade: 'warning',
       status: 'created',
       value: cpuUsage
-    });
+    }, 'cpu경고발생');
     alert(host, type, cpuUsage, 'warning', 'created');
   }
 }
@@ -191,7 +193,7 @@ function alert(host, type, value, grade, status) {
       logger.trace(error.message);
       // Alert slack
     } else {
-      logger.info(response, '알람전송결과');
+      logger.info(response, '알람생성결과');
     }
   });
 }
@@ -202,94 +204,6 @@ function bytesToSize(bytes) {
   var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
   return Math.round(bytes / Math.pow(1024, i), 2) + sizes[i];
 };
-
-var agentOfflineQuery = {
-  "query": {
-    "filtered": {
-      "filter": {
-        "bool": {
-          "must": {
-            "range": {
-              "@timestamp": {
-                "gte": "now-1m"
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "size": 0,
-  "aggs": {
-    "host": {
-      "terms": {
-        "field": "host",
-        "size": 100
-      }
-    }
-  }
-}
-
-var cpuAndMemoryQuery = {
-  "query": {
-    "filtered": {
-      "filter": {
-        "bool": {
-          "must": {
-            "range": {
-              "@timestamp": {
-                "gte": "now-3m"
-              }
-            }
-          },
-          "should": [{
-            "term": {
-              "plugin": "cpu"
-            }
-          }, {
-            "term": {
-              "plugin": "memory"
-            }
-          }]
-        }
-      }
-    }
-  },
-  "size": 0,
-  "aggs": {
-    "host": {
-      "terms": {
-        "field": "host",
-        "size": 100
-      },
-      "aggs": {
-        "plugin": {
-          "terms": {
-            "field": "plugin",
-            "size": 100
-          },
-          "aggs": {
-            "type_instance": {
-              "terms": {
-                "field": "type_instance",
-                "size": 100
-              },
-              "aggs": {
-                "avg": {
-                  "avg": {
-                    "field": "value"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-var serverList = ['demo', 'raspberrypi'];
 
 //todo
 // 1분간 데이타가 없을경우 offline 이벤트를 발생시킨다.

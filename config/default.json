@@ -1,10 +1,112 @@
 {
   "slack": {
-    "token": "YOUR_KEY",
-    "channel": "YOUR_SEND_CHANNEL_ID"
+    "token": "YOUR-KEY",
+    "channel": "YOUR-CHANNEL"
   },
   "elasticsearch": {
-    "host": "192.168.0.10:9200",
+    "host": "127.0.0.1:9200",
     "log": "info"
-  }
+  },
+  "offline": {
+    "schedule": "*/30 * * * * *",
+    "query": {
+      "query": {
+        "filtered": {
+          "filter": {
+            "bool": {
+              "must": {
+                "range": {
+                  "@timestamp": {
+                    "gte": "now-30s"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": 0,
+      "aggs": {
+        "host": {
+          "terms": {
+            "field": "host",
+            "size": 100
+          }
+        }
+      }
+    }
+  },
+  "ping": {
+    "schedule": "*/30 * * * * *"
+  },
+  "cpu&memory": {
+    "schedule": "*/60 * * * * *",
+    "query": {
+      "query": {
+        "filtered": {
+          "filter": {
+            "bool": {
+              "must": {
+                "range": {
+                  "@timestamp": {
+                    "gte": "now-3m"
+                  }
+                }
+              },
+              "should": [{
+                "term": {
+                  "plugin": "cpu"
+                }
+              }, {
+                "term": {
+                  "plugin": "memory"
+                }
+              }]
+            }
+          }
+        }
+      },
+      "size": 0,
+      "aggs": {
+        "host": {
+          "terms": {
+            "field": "host",
+            "size": 100
+          },
+          "aggs": {
+            "plugin": {
+              "terms": {
+                "field": "plugin",
+                "size": 100
+              },
+              "aggs": {
+                "type_instance": {
+                  "terms": {
+                    "field": "type_instance",
+                    "size": 100
+                  },
+                  "aggs": {
+                    "avg": {
+                      "avg": {
+                        "field": "value"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "cpu": {
+    "warning": 30,
+    "danger": 10
+  },
+  "memory": {
+    "warning": 30,
+    "danger": 10
+  },
+  "serverList": ["demo", "raspberrypi"]
 }
