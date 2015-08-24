@@ -1,0 +1,10 @@
+{
+  "slack": {
+    "token": "YOUR_KEY",
+    "channel": "YOUR_SEND_CHANNEL_ID"
+  },
+  "elasticsearch": {
+    "host": "192.168.0.10:9200",
+    "log": "info"
+  }
+}

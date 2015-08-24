@@ -1,0 +1,28 @@
+{
+  "name": "adflowsystemmonitor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "AlarmManager.js",
+  "dependencies": {
+    "bunyan": "^1.4.0",
+    "log": "^1.4.0",
+    "elasticsearch": "^6.1.0",
+    "node-schedule": "^0.2.9",
+    "slack-client": "^1.4.1",
+    "ws": "^0.4.32"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nadir93/ADFMonitor.git"
+  },
+  "author": "@nadir93",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nadir93/ADFMonitor/issues"
+  },
+  "homepage": "https://github.com/nadir93/ADFMonitor#readme"
+}
