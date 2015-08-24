@@ -1,12 +1,13 @@
 {
   "name": "adflowsystemmonitor",
   "version": "1.0.0",
-  "description": "",
+  "description": "collectd - logstash - elastic search - node.js(elasticsearchjs/node-slack-client) - slack",
   "main": "AlarmManager.js",
   "dependencies": {
     "bunyan": "^1.4.0",
-    "log": "^1.4.0",
+    "config": "^1.15.0",
     "elasticsearch": "^6.1.0",
+    "log": "^1.4.0",
     "node-schedule": "^0.2.9",
     "slack-client": "^1.4.1",
     "ws": "^0.4.32"
