@@ -4,7 +4,7 @@ var config = require('config');
 var LogClass = require('./log_to_bunyan');
 var elasticsearch = require('elasticsearch');
 var client = new elasticsearch.Client({
-  host: config.get('elasticsearch.host'),
+  host: process.env.HOST || config.get('elasticsearch.host'),
   log: LogClass
     //'trace'
 });

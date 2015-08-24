@@ -7,13 +7,13 @@ var config = require('config');
 var LogClass = require('./log_to_bunyan');
 var elasticsearch = require('elasticsearch');
 var client = new elasticsearch.Client({
-  host: config.get('elasticsearch.host'),
+  host: process.env.HOST || config.get('elasticsearch.host'),
   log: LogClass
     //'trace'
 });
 var logger = new LogClass();
 var autoMark, autoReconnect, slack, token;
-token = config.get('slack.token');
+token = process.env.TOKEN || config.get('slack.token');
 autoReconnect = true;
 autoMark = true;
 slack = new Slack(token, autoReconnect, autoMark);
@@ -95,17 +95,17 @@ Date.prototype.yyyymmdd = function() {
   return yyyy + '.' + (mm[1] ? mm : "0" + mm[0]) + '.' + (dd[1] ? dd : "0" + dd[0]); // padding
 };
 
-schedule.scheduleJob('*/10 * * * * *' /* 60초마다 */ , function() {
+schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function() {
   //console.log('The answer to life, the universe, and everything!'+new Date());
   client.search({
     index: 'alert-*',
     //type: 'tweets',
-    body: alertQuery
+    body: config.get('alert.query')
   }).then(function(resp) {
       logger.info({
         elapsedtime: resp.took,
         unit: 'ms'
-      }, 'alert쿼리결과');
+      }, '알람점검이완료되었습니다');
       var hosts = resp.aggregations.host.buckets;
       for (hostId in hosts) {
         logger.debug('호스트=' + hosts[hostId].key);
@@ -146,7 +146,7 @@ schedule.scheduleJob('*/10 * * * * *' /* 60초마다 */ , function() {
 
 function notify(host, type, grade, value, timestamp) {
   //send slack
-  var chl = slack.getChannelGroupOrDMByID(config.get('slack.channel'));
+  var chl = slack.getChannelGroupOrDMByID(process.env.CHANNEL || config.get('slack.channel'));
   logger.info(chl.name, 'slackChannel');
   if (chl) {
     var msg = new Message(slack, {
@@ -174,6 +174,7 @@ function notify(host, type, grade, value, timestamp) {
       }]
     });
     chl.postMessage(msg);
+    logger.info(response, '알람이전송되었습니다');
     //create notified record
     var d = new Date();
     client.create({
@@ -192,103 +193,8 @@ function notify(host, type, grade, value, timestamp) {
         logger.trace(error.message);
         // Alert slack
       } else {
-        logger.info(response, '알람전송결과');
+        logger.info(response, '알람전송이기록되었습니다');
       }
     });
   }
 }
-
-var alertQuery = {
-  "query": {
-    "filtered": {
-      "filter": {
-        "or": [{
-          "query": {
-            "filtered": {
-              "query": {
-                "term": {
-                  "status": "notified"
-                }
-              },
-              "filter": {
-                "bool": {
-                  "must": {
-                    "range": {
-                      "timestamp": {
-                        "gte": "now-15m" // 15분간 노티된것에 한해 보내지 않음
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }, {
-          "query": {
-            "filtered": {
-              "filter": {
-                "bool": {
-                  "must": {
-                    "range": {
-                      "timestamp": {
-                        "gte": "now-1m" //alert은 최근 1분간의 데이타만 의미가있음
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }]
-      }
-    }
-  },
-  "size": 0,
-  "aggs": {
-    "host": {
-      "terms": {
-        "field": "host",
-        "size": 100
-      },
-      "aggs": {
-        "type": {
-          "terms": {
-            "field": "type",
-            "size": 100
-          },
-          "aggs": {
-            "grade": {
-              "terms": {
-                "field": "grade",
-                "size": 100
-              },
-              "aggs": {
-                "status": {
-                  "terms": {
-                    "field": "status",
-                    "size": 100
-                  },
-                  "aggs": {
-                    "top_tag_hits": {
-                      "top_hits": {
-                        "sort": [{
-                          "timestamp": {
-                            "order": "desc"
-                          }
-                        }],
-                        "_source": {
-                          "include": []
-                        },
-                        "size": 1
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-};

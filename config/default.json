@@ -100,6 +100,103 @@
       }
     }
   },
+  "alert": {
+    "schedule": "*/30 * * * * *",
+    "query": {
+      "query": {
+        "filtered": {
+          "filter": {
+            "or": [{
+              "query": {
+                "filtered": {
+                  "query": {
+                    "term": {
+                      "status": "notified"
+                    }
+                  },
+                  "filter": {
+                    "bool": {
+                      "must": {
+                        "range": {
+                          "timestamp": {
+                            "gte": "now-15m"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }, {
+              "query": {
+                "filtered": {
+                  "filter": {
+                    "bool": {
+                      "must": {
+                        "range": {
+                          "timestamp": {
+                            "gte": "now-1m"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }]
+          }
+        }
+      },
+      "size": 0,
+      "aggs": {
+        "host": {
+          "terms": {
+            "field": "host",
+            "size": 100
+          },
+          "aggs": {
+            "type": {
+              "terms": {
+                "field": "type",
+                "size": 100
+              },
+              "aggs": {
+                "grade": {
+                  "terms": {
+                    "field": "grade",
+                    "size": 100
+                  },
+                  "aggs": {
+                    "status": {
+                      "terms": {
+                        "field": "status",
+                        "size": 100
+                      },
+                      "aggs": {
+                        "top_tag_hits": {
+                          "top_hits": {
+                            "sort": [{
+                              "timestamp": {
+                                "order": "desc"
+                              }
+                            }],
+                            "_source": {
+                              "include": []
+                            },
+                            "size": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   "cpu": {
     "warning": 30,
     "danger": 10
