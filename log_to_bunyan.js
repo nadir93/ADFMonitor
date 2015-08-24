@@ -5,8 +5,8 @@ var bunyan = require('bunyan');
 function LogToBunyan(config) {
   // config is the object passed to the client constructor.
   var bun = bunyan.createLogger({
-    name: 'logger',
-    level: 'info'
+    name: config.logName || 'logger',
+    level: config.level || 'info'
   });
   this.error = bun.error.bind(bun);
   this.warning = bun.warn.bind(bun);

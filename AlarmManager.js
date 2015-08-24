@@ -9,7 +9,10 @@ var client = new elasticsearch.Client({
     //'trace'
 });
 
-var logger = new LogClass();
+var logger = new LogClass({
+  logName: 'AlarmManager',
+  level: 'info'
+});
 var serverList = config.get('serverList');
 
 // index용 날짜 포맷

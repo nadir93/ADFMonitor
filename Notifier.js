@@ -11,7 +11,10 @@ var client = new elasticsearch.Client({
   log: LogClass
     //'trace'
 });
-var logger = new LogClass();
+var logger = new LogClass({
+  logName: 'Notifier',
+  level: 'info'
+});
 var autoMark, autoReconnect, slack, token;
 token = process.env.TOKEN || config.get('slack.token');
 autoReconnect = true;
