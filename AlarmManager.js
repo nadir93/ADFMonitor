@@ -25,19 +25,20 @@ var BunyanSlack = require('bunyan-slack'),
       customFormatter: function(record, levelName) {
         return {
           attachments: [{
-            fallback: "Required plain-text summary of the attachment.",
-            color: 'dander',
-            pretext: "Optional text that appears above the attachment block",
-            author_name: "Seth Pollack",
-            author_link: "http://sethpollack.net",
-            author_icon: "http://www.gravatar.com/avatar/3f5ce68fb8b38a5e08e7abe9ac0a34f1?s=200",
-            title: "Slack API Documentation",
-            title_link: "https://api.slack.com/",
-            text: "Optional text that appears within the attachment",
+            fallback: 'ADFMonitorNotification',
+            "title": "ADFMonitor",
+            color: 'danger',
+            //pretext: "Optional text that appears above the attachment block",
+            //author_name: "Seth Pollack",
+            //author_link: "http://sethpollack.net",
+            //author_icon: "http://www.gravatar.com/avatar/3f5ce68fb8b38a5e08e7abe9ac0a34f1?s=200",
+            //title: "Slack API Documentation",
+            //title_link: "https://api.slack.com/",
+            //text: "Optional text that appears within the attachment",
             fields: [{
-              title: "We have a new " + levelName + " log",
+              title: "메시지",
               value: record.msg,
-              short: true
+              short: false
             }]
           }]
         };
@@ -45,7 +46,7 @@ var BunyanSlack = require('bunyan-slack'),
     }),
     level: "error"
   });
-slackLogger.error("AlarmManagerInitialized");
+slackLogger.error("알람매니저가초기화되었습니다");
 var serverList = config.get('serverList');
 
 // index용 날짜 포맷
@@ -245,8 +246,8 @@ function bytesToSize(bytes) {
 };
 
 // todo
-// 0. bunyan - slack 으로 오류시 푸시받게 구현
 // 1. 표본데이타가 너무적은경우 alert을 스킵하게해야함 - 예) 부팅하자마자 high cpu usage는 의미가 없음
+// 2. 로그를 반복되는 파일로 처리해야함
 // 2. online event 발생
 // 3. 하루 처리 통계치를 슬랙으로 저녁 6시쯤 전송한다.
 // 4. delete indices - 일정시간이상 지나는 인덱스 삭제

@@ -47,7 +47,7 @@ var BunyanSlack = require('bunyan-slack'),
     }),
     level: "error"
   });
-slackLogger.error("NotifierInitialized");
+slackLogger.error("Notifier가초기화되었습니다");
 
 
 var autoMark, autoReconnect, slack, token;
@@ -142,8 +142,12 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function()
   }).then(function(resp) {
       logger.info({
         elapsedtime: resp.took,
+        total: resp.hits.total,
         unit: 'ms'
       }, '알람점검이완료되었습니다');
+      if (resp.hits.total == 0) {
+        return;
+      }
       var hosts = resp.aggregations.host.buckets;
       for (hostId in hosts) {
         logger.debug('호스트=' + hosts[hostId].key);
