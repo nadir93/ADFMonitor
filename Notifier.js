@@ -27,19 +27,20 @@ var BunyanSlack = require('bunyan-slack'),
       customFormatter: function(record, levelName) {
         return {
           attachments: [{
-            fallback: "Required plain-text summary of the attachment.",
-            color: 'dander',
-            pretext: "Optional text that appears above the attachment block",
-            author_name: "Seth Pollack",
-            author_link: "http://sethpollack.net",
-            author_icon: "http://www.gravatar.com/avatar/3f5ce68fb8b38a5e08e7abe9ac0a34f1?s=200",
-            title: "Slack API Documentation",
-            title_link: "https://api.slack.com/",
-            text: "Optional text that appears within the attachment",
+            fallback: 'ADFMonitorNotification',
+            "title": "ADFMonitor",
+            color: 'danger',
+            //pretext: "Optional text that appears above the attachment block",
+            //author_name: "Seth Pollack",
+            //author_link: "http://sethpollack.net",
+            //author_icon: "http://www.gravatar.com/avatar/3f5ce68fb8b38a5e08e7abe9ac0a34f1?s=200",
+            //title: "Slack API Documentation",
+            //title_link: "https://api.slack.com/",
+            //text: "Optional text that appears within the attachment",
             fields: [{
-              title: "We have a new " + levelName + " log",
+              title: "메시지",
               value: record.msg,
-              short: true
+              short: false
             }]
           }]
         };
@@ -47,7 +48,7 @@ var BunyanSlack = require('bunyan-slack'),
     }),
     level: "error"
   });
-slackLogger.error("Notifier가초기화되었습니다");
+slackLogger.error("Notifier가시작되었습니다");
 
 
 var autoMark, autoReconnect, slack, token;
