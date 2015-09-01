@@ -1,18 +1,29 @@
 var schedule = require('node-schedule');
-var http = require('http');
+var request = require('request');
 var querystring = require('querystring');
 
 schedule.scheduleJob("*/5 * * * * *" /* 15분마다 */ , function() {
-  //http://api.thingspeak.com/channels/27833/feed/last.json
-  http.get("http://api.thingspeak.com/channels/27833/feed/last.json", function(res) {
-    var body = '';
-    res.on('data', function(chunk) {
-      body += chunk;
-    });
-    res.on('end', function() {
-      //{"created_at":"2015-09-01T14:42:26Z","entry_id":453709,"field1":"26.75"}
-      var data = JSON.parse(body);
-      console.log('temp:' + data.field1 + '°C');
+
+  // Set the headers
+  var headers = {
+    'User-Agent': 'Super Agent/0.0.1',
+    'X-Application-Key': '98178cad8cbe5ff9ed2ea7e',
+    'Content-Type': 'application/json;charset=utf-8',
+  }
+
+  // Configure the request
+  var options = {
+    url: 'http://api.thingspeak.com/channels/27833/feed/last.json',
+    method: 'GET',
+    headers: headers,
+  }
+
+  // Start the request
+  request(options, function(error, response, body) {
+    if (!error && response.statusCode == 200) {
+      // Print out the response body
+      console.log(body)
+      console.log('temp:' + body.field1 + '°C');
 
       //header
       // {
@@ -30,44 +41,28 @@ schedule.scheduleJob("*/5 * * * * *" /* 15분마다 */ , function() {
       //   "qos": "2"
       // }
 
-      var postData = querystring.stringify({
-        "sender": "/test/topic/sender",
-        "receiver": "users/nadir93/home/fishtank/temp",
-        "content": "fishtank temp:" + data.field1 + '°C',
-        "contentType": "application/base64",
-        "qos": "2"
-      });
-
+      // Configure the request
       var options = {
-        hostname: 'http://112.223.76.75',
+        url: '112.223.76.75',
         port: 8080,
-        path: '/v1/messages',
         method: 'POST',
-        headers: {
-          "User-Agent": "My User Agent 1.0",
-          "X-Application-Key": "98178cad8cbe5ff9ed2ea7e",
-          "Content-Type": "application/json;charset=utf-8",
-          'Content-Length': postData.length
+        json: {
+          "sender": "/test/topic/sender",
+          "receiver": "users/nadir93/home/fishtank/temp",
+          "content": "fishtank temp:" + body.field1 + '°C',
+          "contentType": "application/base64",
+          "qos": "2"
+        },
+        headers: headers,
+      }
+
+      // Start the request
+      request(options, function(error, response, body) {
+        if (!error && response.statusCode == 200) {
+          // Print out the response body
+          console.log(body)
         }
-      };
-
-      var req = http.request(options, function(response) {
-        console.log('STATUS: ' + response.statusCode);
-        console.log('HEADERS: ' + JSON.stringify(response.headers));
-        response.setEncoding('utf8');
-        response.on('data', function(chunk) {
-          console.log('BODY: ' + chunk);
-        });
-      });
-
-      req.on('error', function(e) {
-        console.log('problem with request: ' + e.message);
-      });
-      // write data to request body
-      req.write(postData);
-      req.end();
-    });
-  }).on('error', function(e) {
-    console.log("Got error: " + e.message);
-  });
+      })
+    }
+  })
 });
