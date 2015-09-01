@@ -1,6 +1,37 @@
 var schedule = require('node-schedule');
 var request = require('request');
-var querystring = require('querystring');
+var bunyan = require("bunyan");
+var BunyanSlack = require('bunyan-slack'),
+  slackLogger = bunyan.createLogger({
+    name: "pulmuoneLogger",
+    stream: new BunyanSlack({
+      webhook_url: "https://hooks.slack.com/services/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",
+      channel: "#monitoring",
+      username: "에이디플로우알림이",
+      customFormatter: function(record, levelName) {
+        return {
+          attachments: [{
+            fallback: 'ADFMonitorNotification',
+            "title": "ADFMonitor",
+            color: 'danger',
+            //pretext: "Optional text that appears above the attachment block",
+            //author_name: "Seth Pollack",
+            //author_link: "http://sethpollack.net",
+            //author_icon: "http://www.gravatar.com/avatar/3f5ce68fb8b38a5e08e7abe9ac0a34f1?s=200",
+            //title: "Slack API Documentation",
+            //title_link: "https://api.slack.com/",
+            //text: "Optional text that appears within the attachment",
+            fields: [{
+              title: "메시지",
+              value: record.msg,
+              short: false
+            }]
+          }]
+        };
+      }
+    }),
+    level: "error"
+  });
 
 schedule.scheduleJob("*/5 * * * * *" /* 15분마다 */ , function() {
 
@@ -20,10 +51,16 @@ schedule.scheduleJob("*/5 * * * * *" /* 15분마다 */ , function() {
 
   // Start the request
   request(options, function(error, response, body) {
+    if (error) {
+      slackLogger.error(error);
+      return;
+    }
+
     if (!error && response.statusCode == 200) {
       // Print out the response body
       console.log(body)
-      console.log('temp:' + body.field1 + '°C');
+      var data = JSON.parse(body);
+      console.log('temp:' + data.field1 + '°C');
 
       //header
       // {
@@ -43,13 +80,12 @@ schedule.scheduleJob("*/5 * * * * *" /* 15분마다 */ , function() {
 
       // Configure the request
       var options = {
-        url: '112.223.76.75',
-        port: 8080,
+        uri: 'http://127.0.0.1:8080/v1/messages',
         method: 'POST',
         json: {
           "sender": "/test/topic/sender",
           "receiver": "users/nadir93/home/fishtank/temp",
-          "content": "fishtank temp:" + body.field1 + '°C',
+          "content": "fishtank temp:" + data.field1 + '°C',
           "contentType": "application/base64",
           "qos": "2"
         },
@@ -58,6 +94,10 @@ schedule.scheduleJob("*/5 * * * * *" /* 15분마다 */ , function() {
 
       // Start the request
       request(options, function(error, response, body) {
+        if (error) {
+          slackLogger.error(error);
+          return;
+        }
         if (!error && response.statusCode == 200) {
           // Print out the response body
           console.log(body)
