@@ -26,7 +26,7 @@ var BunyanSlack = require('bunyan-slack'),
         return {
           attachments: [{
             fallback: 'ADFMonitorNotification',
-            "title": "ADFMonitor",
+            "title": "ADFMonitor - AlarmManager",
             color: 'danger',
             //pretext: "Optional text that appears above the attachment block",
             //author_name: "Seth Pollack",
@@ -46,7 +46,7 @@ var BunyanSlack = require('bunyan-slack'),
     }),
     level: "error"
   });
-slackLogger.error("알람매니저가시작되었습니다");
+//slackLogger.error("알람매니저가시작되었습니다");
 var serverList = config.get('serverList');
 
 // index용 날짜 포맷
@@ -86,9 +86,15 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
   }).then(function(resp) {
       // elasticsearch에 ALERT데이타를 입력
       logger.info({
-        수행시간: resp.took,
-        unit: 'ms'
+        수행시간: resp.took + 'ms',
+        검색된문서: resp.hits.total
       }, '오프라인점검이완료되었습니다');
+
+      if (resp.hits.total == 0) {
+        logger.error('오프라인검색문서가존재하지않습니다');
+        alert('allAgents', 'offline', '', 'danger', 'created');
+        return;
+      }
       var hosts = resp.aggregations.host.buckets;
       logger.info({
         count: hosts.length
@@ -121,6 +127,43 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
     });
 });
 
+// 디스크
+logger.info('disk점검주기=' + config.get('disk.schedule'));
+schedule.scheduleJob(config.get('disk.schedule') /* 1분마다 */ , function() {
+  client.search({
+    index: 'logstash-*',
+    //type: 'tweets',
+    body: config.get('disk.query')
+  }).then(function(resp) {
+      // elasticsearch에 ALERT데이타를 입력
+      logger.info({
+        수행시간: resp.took + 'ms',
+        검색된문서: resp.hits.total
+      }, 'disk점검이완료되었습니다');
+
+      if (resp.hits.total == 0) {
+        logger.error('disk검색문서가존재하지않습니다');
+        return;
+      }
+
+      var hosts = resp.aggregations.host.buckets;
+      for (hostId in hosts) {
+        logger.debug('호스트=' + hosts[hostId].key);
+        var plugins = hosts[hostId].plugin.buckets
+        for (pluginId in plugins) {
+          logger.debug('플러그인인스턴스=' + hosts[hostId].key + ':' + plugins[pluginId].key);
+          var pluginTypes = plugins[pluginId].type_instance.buckets;
+          //디스크처리
+          processDisk(hosts[hostId].key, 'df', plugins[pluginId].key, pluginTypes);
+        }
+      }
+    },
+    function(err) {
+      logger.trace(err.message);
+      //문제발생 slack으로 푸시
+    });
+});
+
 // cpu& memory
 logger.info('cpu&memory점검주기=' + config.get('cpu&memory.schedule'));
 schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */ , function() {
@@ -132,9 +175,15 @@ schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */ , functi
   }).then(function(resp) {
       // elasticsearch에 ALERT데이타를 입력
       logger.info({
-        elapsedtime: resp.took,
-        unit: 'ms'
+        수행시간: resp.took + 'ms',
+        검색된문서: resp.hits.total
       }, 'cpu&memory점검이완료되었습니다');
+
+      if (resp.hits.total == 0) {
+        logger.error('cpu&memory검색문서가존재하지않습니다');
+        return;
+      }
+
       var hosts = resp.aggregations.host.buckets;
       for (hostId in hosts) {
         logger.debug('호스트=' + hosts[hostId].key);
@@ -148,6 +197,9 @@ schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */ , functi
           } else if (plugins[pluginId].key == 'cpu') {
             //cpu처리
             processCPU(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
+          } else if (plugins[pluginId].key == 'df') {
+            //디스크처리
+            processDisk(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
           }
         }
       }
@@ -177,6 +229,53 @@ function processMemory(host, type, instance) {
   });
 }
 
+//disk 처리
+function processDisk(host, type, typeInstance, instance) {
+  logger.debug(instance);
+  var total, free, used, reserved;
+  for (id in instance) {
+    if (instance[id].key == 'free') {
+      free = instance[id].avg.value;
+    } else if (instance[id].key == 'used') {
+      used = instance[id].avg.value;
+    } else if (instance[id].key == 'reserved') {
+      reserved = instance[id].avg.value;
+    }
+  }
+  total = free + used + reserved;
+  result = (free / total * 100).toFixed(2);
+  var diskUsage = (100 - result).toFixed(2) + '%';
+
+  logger.info({
+    host: host,
+    type: type,
+    typeInstance: typeInstance,
+    디스크사용량: diskUsage
+  });
+
+  if (config.get(host + '.disk.' + typeInstance)) {
+    if (result < config.get(host + '.disk.' + typeInstance + '.danger')) {
+      logger.error({
+        host: host,
+        typeInstance: typeInstance,
+        grade: 'danger',
+        status: 'created',
+        value: diskUsage
+      }, 'disk위험발생');
+      alert(host, type, diskUsage, 'danger', 'created', typeInstance);
+    } else if (result < config.get(host + '.disk.' + typeInstance + '.warning')) {
+      logger.error({
+        host: host,
+        typeInstance: typeInstance,
+        grade: 'warning',
+        status: 'created',
+        value: diskUsage
+      }, 'disk경고발생');
+      alert(host, type, diskUsage, 'warning', 'created', typeInstance);
+    }
+  }
+}
+
 //cpu 처리
 function processCPU(host, type, instance) {
   logger.debug(instance);
@@ -194,16 +293,16 @@ function processCPU(host, type, instance) {
     cpu사용량: cpuUsage
   });
 
-  if (idle < config.get('cpu.danger')) {
-    logger.info({
+  if (idle < config.get('default.cpu.danger')) {
+    logger.error({
       host: host,
       grade: 'danger',
       status: 'created',
       value: cpuUsage
     }, 'cpu위험발생');
     alert(host, type, cpuUsage, 'danger', 'created');
-  } else if (idle < config.get('cpu.warning')) {
-    logger.info({
+  } else if (idle < config.get('default.cpu.warning')) {
+    logger.error({
       host: host,
       grade: 'warning',
       status: 'created',
@@ -214,7 +313,7 @@ function processCPU(host, type, instance) {
 }
 
 //alerting
-function alert(host, type, value, grade, status) {
+function alert(host, type, value, grade, status, typeInstance) {
   var d = new Date();
   client.create({
     index: 'alert-' + d.yyyymmdd(),
@@ -223,6 +322,7 @@ function alert(host, type, value, grade, status) {
     body: {
       host: host,
       type: type,
+      typeInstance: typeInstance,
       timestamp: d,
       value: value,
       grade: grade,
@@ -233,7 +333,7 @@ function alert(host, type, value, grade, status) {
       slackLogger.error(error.message);
       // Alert slack
     } else {
-      logger.info(response, '알람생성결과');
+      logger.error(response, '알람생성결과');
     }
   });
 }
@@ -248,7 +348,7 @@ function bytesToSize(bytes) {
 // todo
 // 1. 표본데이타가 너무적은경우 alert을 스킵하게해야함 - 예) 부팅하자마자 high cpu usage는 의미가 없음
 // 2. 로그를 반복되는 파일로 처리해야함
-// 2. online event 발생
+// 2. offline& online event 발생
 // 3. 하루 처리 통계치를 슬랙으로 저녁 6시쯤 전송한다.
 // 4. delete indices - 일정시간이상 지나는 인덱스 삭제
 // 5. logstash 시간 체크해볼것 gmt + 9

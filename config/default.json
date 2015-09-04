@@ -100,6 +100,63 @@
       }
     }
   },
+  "disk": {
+    "schedule": "*/60 * * * * *",
+    "query": {
+      "query": {
+        "filtered": {
+          "filter": {
+            "bool": {
+              "must": {
+                "range": {
+                  "@timestamp": {
+                    "gte": "now-1m"
+                  }
+                }
+              },
+              "should": [{
+                "term": {
+                  "plugin": "df"
+                }
+              }]
+            }
+          }
+        }
+      },
+      "size": 0,
+      "aggs": {
+        "host": {
+          "terms": {
+            "field": "host",
+            "size": 100
+          },
+          "aggs": {
+            "plugin": {
+              "terms": {
+                "field": "plugin_instance",
+                "size": 100
+              },
+              "aggs": {
+                "type_instance": {
+                  "terms": {
+                    "field": "type_instance",
+                    "size": 100
+                  },
+                  "aggs": {
+                    "avg": {
+                      "avg": {
+                        "field": "value"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   "alert": {
     "schedule": "*/30 * * * * *",
     "query": {
@@ -197,13 +254,56 @@
       }
     }
   },
-  "cpu": {
-    "warning": 30,
-    "danger": 10
+  "default": {
+    "cpu": {
+      "warning": 30,
+      "danger": 10
+    },
+    "memory": {
+      "warning": 30,
+      "danger": 10
+    },
+    "disk": {
+      "warning": 30,
+      "danger": 10
+    }
   },
-  "memory": {
-    "warning": 30,
-    "danger": 10
+  "serverList": ["demo", "raspberrypi"],
+  "demo": {
+    "cpu": {
+      "warning": 30,
+      "danger": 10
+    },
+    "memory": {
+      "warning": 30,
+      "danger": 10
+    },
+    "disk": {
+      "root": {
+        "warning": 30,
+        "danger": 10
+      }
+    },
+    "process": ["a", "b"]
   },
-  "serverList": ["demo", "raspberrypi"]
+  "raspberrypi": {
+    "cpu": {
+      "warning": 30,
+      "danger": 10
+    },
+    "memory": {
+      "warning": 30,
+      "danger": 10
+    },
+    "disk": {
+      "mnt": {
+        "warning": 30,
+        "danger": 10
+      },
+      "boot": {
+        "warning": 30,
+        "danger": 10
+      }
+    }
+  }
 }

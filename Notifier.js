@@ -28,7 +28,7 @@ var BunyanSlack = require('bunyan-slack'),
         return {
           attachments: [{
             fallback: 'ADFMonitorNotification',
-            "title": "ADFMonitor",
+            "title": "ADFMonitor - Notifier",
             color: 'danger',
             //pretext: "Optional text that appears above the attachment block",
             //author_name: "Seth Pollack",
@@ -142,8 +142,8 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function()
     body: config.get('alert.query')
   }).then(function(resp) {
       logger.info({
-        elapsedtime: resp.took,
-        total: resp.hits.total,
+        수행시간: resp.took,
+        검색된문서수: resp.hits.total,
         unit: 'ms'
       }, '알람점검이완료되었습니다');
       if (resp.hits.total == 0) {
