@@ -221,11 +221,12 @@ function processMemory(host, type, instance) {
       free = instance[id].avg.value;
     }
   }
+  var memoryUsage = (100 - (free / total * 100)).toFixed(2) + '%';
   logger.info({
     host: host,
     totalMemory: bytesToSize(total),
     freeMemory: bytesToSize(free),
-    utilization: (free / total * 100).toFixed(2) + '%'
+    메모리사용률: memoryUsage
   });
 }
 
@@ -244,13 +245,13 @@ function processDisk(host, type, typeInstance, instance) {
   }
   total = free + used + reserved;
   result = (free / total * 100).toFixed(2);
-  var diskUsage = (100 - result).toFixed(2) + '%';
+  var diskUsage = 100 - result + '%';
 
   logger.info({
     host: host,
     type: type,
     typeInstance: typeInstance,
-    디스크사용량: diskUsage
+    디스크사용률: diskUsage
   });
 
   if (config.get(host + '.disk.' + typeInstance)) {
@@ -290,7 +291,7 @@ function processCPU(host, type, instance) {
   var cpuUsage = (100 - idle).toFixed(2) + '%';
   logger.info({
     host: host,
-    cpu사용량: cpuUsage
+    cpu사용률: cpuUsage
   });
 
   if (idle < config.get('default.cpu.danger')) {
