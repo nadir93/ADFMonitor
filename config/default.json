@@ -268,7 +268,41 @@
       "danger": 10
     }
   },
-  "serverList": ["demo", "raspberrypi"],
+  "serverList": ["sso2", "www1"],
+  "www1": {
+    "cpu": {
+      "warning": 30,
+      "danger": 10
+    },
+    "memory": {
+      "warning": 30,
+      "danger": 10
+    },
+    "disk": {
+      "root": {
+        "warning": 30,
+        "danger": 10
+      }
+    },
+    "process": ["a", "b"]
+  },
+  "sso2": {
+    "cpu": {
+      "warning": 30,
+      "danger": 10
+    },
+    "memory": {
+      "warning": 30,
+      "danger": 10
+    },
+    "disk": {
+      "root": {
+        "warning": 30,
+        "danger": 10
+      }
+    },
+    "process": ["a", "b"]
+  },
   "demo": {
     "cpu": {
       "warning": 30,
