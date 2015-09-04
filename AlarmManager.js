@@ -291,7 +291,7 @@ function processCPU(host, type, instance) {
   var cpuUsage = (100 - idle).toFixed(2) + '%';
   logger.info({
     host: host,
-    cpu사용률: cpuUsage
+    cpu사용률: cpuUsage
   });
 
   if (idle < config.get('default.cpu.danger')) {
