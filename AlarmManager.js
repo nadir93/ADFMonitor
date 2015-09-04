@@ -245,7 +245,7 @@ function processDisk(host, type, typeInstance, instance) {
   }
   total = free + used + reserved;
   result = (free / total * 100).toFixed(2);
-  var diskUsage = 100 - result + '%';
+  var diskUsage = (100 - result).toFixed(2) + '%';
 
   logger.info({
     host: host,
