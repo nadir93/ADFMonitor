@@ -12,21 +12,21 @@ var client = new elasticsearch.Client({
 var bunyan = require("bunyan"),
   logger = new LogClass({
     logName: 'AlarmManager',
-    level: 'info'
+    level: config.get('bunyan.level')
   });
 
 var BunyanSlack = require('bunyan-slack'),
   slackLogger = bunyan.createLogger({
     name: "AlarmManager",
     stream: new BunyanSlack({
-      webhook_url: "https://hooks.slack.com/services/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",
-      channel: "#monitoring",
+      webhook_url: process.env.webhook_url || config.get('slack.webhook_url'),
+      channel: process.env.webhook_channel || config.get('slack.webhook_channel'),
       username: "에이디플로우알림이",
       customFormatter: function(record, levelName) {
         return {
           attachments: [{
-            fallback: 'ADFMonitorNotification',
-            "title": "ADFMonitor - AlarmManager",
+            fallback: 'AlarmManager(' + process.env.HOST + ')',
+            "title": 'AlarmManager(' + process.env.HOST + ')',
             color: 'danger',
             //pretext: "Optional text that appears above the attachment block",
             //author_name: "Seth Pollack",
@@ -92,7 +92,7 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
 
       if (resp.hits.total == 0) {
         logger.error('오프라인검색문서가존재하지않습니다');
-        alert('allAgents', 'offline', '', 'danger', 'created');
+        alert('allAgents', 'offline', '', 'danger', 'created', 'off');
         return;
       }
       var hosts = resp.aggregations.host.buckets;
@@ -117,7 +117,7 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
         if (!exists) {
           logger.error(serverList[id] + '서버agent가offline입니다');
           //send alert
-          alert(serverList[id], 'offline', '', 'danger', 'created');
+          alert(serverList[id], 'offline', '', 'danger', 'created', 'off');
         }
       }
     },
@@ -126,6 +126,95 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */ , function(
       //문제발생 slack으로 푸시
     });
 });
+
+// 프로세스
+logger.info('프로세스점검주기=' + config.get('process.schedule'));
+schedule.scheduleJob(config.get('process.schedule') /* 1분마다 */ , function() {
+  client.search({
+    index: 'logstash-*',
+    //type: 'tweets',
+    body: config.get('process.query')
+  }).then(function(resp) {
+      // elasticsearch에 ALERT데이타를 입력
+      logger.info({
+        수행시간: resp.took + 'ms',
+        검색된문서: resp.hits.total
+      }, 'process점검이완료되었습니다');
+
+      if (resp.hits.total == 0) {
+        logger.error('process검색문서가존재하지않습니다');
+        return;
+      }
+
+      var hosts = resp.aggregations.host.buckets;
+      for (hostId in hosts) {
+        logger.debug('호스트=' + hosts[hostId].key);
+        var types = hosts[hostId].type_instance.buckets
+        for (typeId in types) {
+          logger.debug('프로세스명=' + types[typeId].key);
+          //process처리
+          processProcess(hosts[hostId].key, types[typeId].key, types[typeId].top_tag_hits);
+        }
+      }
+    },
+    function(err) {
+      logger.trace(err.message);
+      //문제발생 slack으로 푸시
+    });
+});
+
+//프로세스 처리
+function processProcess(host, processName, instance) {
+  logger.debug({
+    data: instance
+  }, '데이타');
+
+  var processList = config.get(host + '.process');
+  var exists = false;
+  for (id in processList) {
+    if (processName == processList[id]) {
+      exists = true;
+    }
+  }
+
+  if (!exists) {
+    return;
+  }
+
+  logger.info({
+    host: host,
+    process: processName,
+    status: (instance.hits.hits[0]._source.value == 1) ? 'running' : 'down'
+  });
+
+  if (instance.hits.hits[0]._source.value != 1) {
+    logger.error({
+      host: host,
+      process: processName,
+      grade: 'danger',
+      status: 'created',
+      value: '프로세스가중지되었습니다'
+    }, 'process위험발생');
+    alert(host, 'process', 'down', 'danger', 'created', processName);
+  }
+
+
+  // var total = 0;
+  // var free;
+  // for (id in instance) {
+  //   total = total + instance[id].avg.value;
+  //   if (instance[id].key == 'free') {
+  //     free = instance[id].avg.value;
+  //   }
+  // }
+  // var memoryUsage = (100 - (free / total * 100)).toFixed(2) + '%';
+  // logger.info({
+  //   host: host,
+  //   totalMemory: bytesToSize(total),
+  //   freeMemory: bytesToSize(free),
+  //   메모리사용률: memoryUsage
+  // });
+}
 
 // 디스크
 logger.info('disk점검주기=' + config.get('disk.schedule'));
@@ -163,72 +252,6 @@ schedule.scheduleJob(config.get('disk.schedule') /* 1분마다 */ , function() {
       //문제발생 slack으로 푸시
     });
 });
-
-// cpu& memory
-logger.info('cpu&memory점검주기=' + config.get('cpu&memory.schedule'));
-schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */ , function() {
-  //console.log('The answer to life, the universe, and everything!'+new Date());
-  client.search({
-    index: 'logstash-*',
-    //type: 'tweets',
-    body: config.get('cpu&memory.query')
-  }).then(function(resp) {
-      // elasticsearch에 ALERT데이타를 입력
-      logger.info({
-        수행시간: resp.took + 'ms',
-        검색된문서: resp.hits.total
-      }, 'cpu&memory점검이완료되었습니다');
-
-      if (resp.hits.total == 0) {
-        logger.error('cpu&memory검색문서가존재하지않습니다');
-        return;
-      }
-
-      var hosts = resp.aggregations.host.buckets;
-      for (hostId in hosts) {
-        logger.debug('호스트=' + hosts[hostId].key);
-        var plugins = hosts[hostId].plugin.buckets
-        for (pluginId in plugins) {
-          logger.debug('플러그인=' + hosts[hostId].key + ':' + plugins[pluginId].key);
-          var pluginTypes = plugins[pluginId].type_instance.buckets
-          if (plugins[pluginId].key == 'memory') {
-            // 메모리 처리
-            processMemory(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
-          } else if (plugins[pluginId].key == 'cpu') {
-            //cpu처리
-            processCPU(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
-          } else if (plugins[pluginId].key == 'df') {
-            //디스크처리
-            processDisk(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
-          }
-        }
-      }
-    },
-    function(err) {
-      logger.trace(err.message);
-      //문제발생 slack으로 푸시
-    });
-});
-
-//memory 처리
-function processMemory(host, type, instance) {
-  logger.debug(instance);
-  var total = 0;
-  var free;
-  for (id in instance) {
-    total = total + instance[id].avg.value;
-    if (instance[id].key == 'free') {
-      free = instance[id].avg.value;
-    }
-  }
-  var memoryUsage = (100 - (free / total * 100)).toFixed(2) + '%';
-  logger.info({
-    host: host,
-    totalMemory: bytesToSize(total),
-    freeMemory: bytesToSize(free),
-    메모리사용률: memoryUsage
-  });
-}
 
 //disk 처리
 function processDisk(host, type, typeInstance, instance) {
@@ -277,6 +300,69 @@ function processDisk(host, type, typeInstance, instance) {
   }
 }
 
+// cpu& memory
+logger.info('cpu&memory점검주기=' + config.get('cpu&memory.schedule'));
+schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */ , function() {
+  //console.log('The answer to life, the universe, and everything!'+new Date());
+  client.search({
+    index: 'logstash-*',
+    //type: 'tweets',
+    body: config.get('cpu&memory.query')
+  }).then(function(resp) {
+      // elasticsearch에 ALERT데이타를 입력
+      logger.info({
+        수행시간: resp.took + 'ms',
+        검색된문서: resp.hits.total
+      }, 'cpu&memory점검이완료되었습니다');
+
+      if (resp.hits.total == 0) {
+        logger.error('cpu&memory검색문서가존재하지않습니다');
+        return;
+      }
+
+      var hosts = resp.aggregations.host.buckets;
+      for (hostId in hosts) {
+        logger.debug('호스트=' + hosts[hostId].key);
+        var plugins = hosts[hostId].plugin.buckets
+        for (pluginId in plugins) {
+          logger.debug('플러그인=' + hosts[hostId].key + ':' + plugins[pluginId].key);
+          var pluginTypes = plugins[pluginId].type_instance.buckets
+          if (plugins[pluginId].key == 'memory') {
+            // 메모리 처리
+            processMemory(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
+          } else if (plugins[pluginId].key == 'cpu') {
+            //cpu처리
+            processCPU(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
+          }
+        }
+      }
+    },
+    function(err) {
+      logger.trace(err.message);
+      //문제발생 slack으로 푸시
+    });
+});
+
+//memory 처리
+function processMemory(host, type, instance) {
+  logger.debug(instance);
+  var total = 0;
+  var free;
+  for (id in instance) {
+    total = total + instance[id].avg.value;
+    if (instance[id].key == 'free') {
+      free = instance[id].avg.value;
+    }
+  }
+  var memoryUsage = (100 - (free / total * 100)).toFixed(2) + '%';
+  logger.info({
+    host: host,
+    totalMemory: bytesToSize(total),
+    freeMemory: bytesToSize(free),
+    메모리사용률: memoryUsage
+  });
+}
+
 //cpu 처리
 function processCPU(host, type, instance) {
   logger.debug(instance);
@@ -301,7 +387,7 @@ function processCPU(host, type, instance) {
       status: 'created',
       value: cpuUsage
     }, 'cpu위험발생');
-    alert(host, type, cpuUsage, 'danger', 'created');
+    alert(host, type, cpuUsage, 'danger', 'created', 'all');
   } else if (idle < config.get('default.cpu.warning')) {
     logger.error({
       host: host,
@@ -309,7 +395,7 @@ function processCPU(host, type, instance) {
       status: 'created',
       value: cpuUsage
     }, 'cpu경고발생');
-    alert(host, type, cpuUsage, 'warning', 'created');
+    alert(host, type, cpuUsage, 'warning', 'created', 'all');
   }
 }
 

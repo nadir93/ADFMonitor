@@ -14,21 +14,21 @@ var client = new elasticsearch.Client({
 var bunyan = require("bunyan"),
   logger = new LogClass({
     logName: 'Notifier',
-    level: 'info'
+    level: config.get('bunyan.level')
   });
 
 var BunyanSlack = require('bunyan-slack'),
   slackLogger = bunyan.createLogger({
     name: "Notifier",
     stream: new BunyanSlack({
-      webhook_url: "https://hooks.slack.com/services/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",
-      channel: "#monitoring",
+      webhook_url: process.env.webhook_url || config.get('slack.webhook_url'),
+      channel: process.env.webhook_channel || config.get('slack.webhook_channel'),
       username: "에이디플로우알림이",
       customFormatter: function(record, levelName) {
         return {
           attachments: [{
-            fallback: 'ADFMonitorNotification',
-            "title": "ADFMonitor - Notifier",
+            fallback: 'Notifier(' + process.env.HOST + ')',
+            "title": 'Notifier(' + process.env.HOST + ')',
             color: 'danger',
             //pretext: "Optional text that appears above the attachment block",
             //author_name: "Seth Pollack",
@@ -142,9 +142,8 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function()
     body: config.get('alert.query')
   }).then(function(resp) {
       logger.info({
-        수행시간: resp.took,
-        검색된문서수: resp.hits.total,
-        unit: 'ms'
+        수행시간: resp.took + 'ms',
+        검색된문서수: resp.hits.total
       }, '알람점검이완료되었습니다');
       if (resp.hits.total == 0) {
         return;
@@ -155,29 +154,33 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function()
         var types = hosts[hostId].type.buckets;
         for (typesId in types) {
           logger.debug('타입=' + hosts[hostId].key + ':' + types[typesId].key);
-          var alarm = true;
-          var grade;
-          var value;
-          var grades = types[typesId].grade.buckets;
-          var timestamp;
-          for (gradeId in grades) {
-            logger.debug('중요도=' + hosts[hostId].key + ':' + types[typesId].key + ':' + grades[gradeId].key);
-            grade = grades[gradeId].key;
-            var status = grades[gradeId].status.buckets;
-            for (statusId in status) {
-              logger.debug('상태=' + hosts[hostId].key + ':' + types[typesId].key + ':' + grades[gradeId].key + ':' + status[statusId].key);
-              var hits = status[statusId].top_tag_hits.hits.hits[0];
-              logger.debug('hits=' + util.inspect(hits));
-              value = hits._source.value;
-              timestamp = hits._source.timestamp;
-              if (hits && status[statusId].key == 'notified') {
-                alarm = false;
+          var typeInstances = types[typesId].typeInstance.buckets;
+          for (typeInstanceId in typeInstances) {
+            logger.debug('타입=' + hosts[hostId].key + ':' + types[typesId].key + ':' + typeInstances[typeInstanceId].key);
+            var alarm = true;
+            var grade;
+            var value;
+            var grades = typeInstances[typeInstanceId].grade.buckets;
+            var timestamp;
+            for (gradeId in grades) {
+              logger.debug('중요도=' + hosts[hostId].key + ':' + types[typesId].key + ':' + typeInstances[typeInstanceId].key + ':' + grades[gradeId].key);
+              grade = grades[gradeId].key;
+              var status = grades[gradeId].status.buckets;
+              for (statusId in status) {
+                logger.debug('상태=' + hosts[hostId].key + ':' + types[typesId].key + ':' + typeInstances[typeInstanceId].key + ':' + grades[gradeId].key + ':' + status[statusId].key);
+                var hits = status[statusId].top_tag_hits.hits.hits[0];
+                logger.debug('hits=' + util.inspect(hits));
+                value = hits._source.value;
+                timestamp = hits._source.timestamp;
+                if (hits && status[statusId].key == 'notified') {
+                  alarm = false;
+                }
               }
             }
-          }
-          //send alarm
-          if (alarm) {
-            notify(hosts[hostId].key, types[typesId].key, grade, value, timestamp);
+            //send alarm
+            if (alarm) {
+              notify(hosts[hostId].key, types[typesId].key, typeInstances[typeInstanceId].key, grade, value, timestamp);
+            }
           }
         }
       }
@@ -187,7 +190,7 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function()
     });
 });
 
-function notify(host, type, grade, value, timestamp) {
+function notify(host, type, typeInstance, grade, value, timestamp) {
   //send slack
   var chl = slack.getChannelGroupOrDMByID(process.env.CHANNEL || config.get('slack.channel'));
   logger.info(chl.name, 'slackChannel');
@@ -196,11 +199,11 @@ function notify(host, type, grade, value, timestamp) {
       username: '에이디플로우알림이',
       icon_emoji: ':adflowalert:',
       attachments: [{
-        "fallback": host + ' ' + ((type == 'cpu' || type == 'memory') ? type + '사용량' : type) + value,
+        "fallback": host + ' ' + ((type == 'cpu' || type == 'memory') ? type + '사용량' : ((type == 'df') ? typeInstance + '디스크사용량' : ((type == 'process') ? typeInstance + '프로세스' : type))) + ' ' + value,
         //"pretext": resp.aggregations.host.buckets[0].key,
         "title": host,
         "fields": [{
-            "title": (type == 'cpu' || type == 'memory') ? type + '사용량' : type,
+            "title": (type == 'cpu' || type == 'memory') ? type + '사용량' : ((type == 'df') ? typeInstance + '디스크사용량' : ((type == 'process') ? typeInstance + '프로세스' : type)),
             "value": value,
             "short": true
           }, {
@@ -221,6 +224,7 @@ function notify(host, type, grade, value, timestamp) {
     logger.info({
       host: host,
       type: type,
+      typeInstance: typeInstance,
       grade: grade,
       value: value
     }, '알람이전송되었습니다');
@@ -233,6 +237,7 @@ function notify(host, type, grade, value, timestamp) {
       body: {
         host: host,
         type: type,
+        typeInstance: typeInstance,
         timestamp: d,
         grade: grade,
         status: 'notified'

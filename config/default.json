@@ -1,7 +1,12 @@
 {
   "slack": {
     "token": "YOUR-KEY",
-    "channel": "YOUR-CHANNEL"
+    "channel": "YOUR-CHANNEL",
+    "webhook_channel": "#monitoring",
+    "webhook_url": "YOUR-WEBHOOKURL"
+  },
+  "bunyan": {
+    "level": "info"
   },
   "elasticsearch": {
     "host": "127.0.0.1:9200",
@@ -17,7 +22,7 @@
               "must": {
                 "range": {
                   "@timestamp": {
-                    "gte": "now-30s"
+                    "gte": "now-2m"
                   }
                 }
               }
@@ -91,6 +96,66 @@
                         "field": "value"
                       }
                     }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "process": {
+    "schedule": "*/60 * * * * *",
+    "query": {
+      "query": {
+        "filtered": {
+          "filter": {
+            "bool": {
+              "must": {
+                "range": {
+                  "@timestamp": {
+                    "gte": "now-2m"
+                  }
+                }
+              },
+              "should": [{
+                "term": {
+                  "plugin": "process"
+                }
+              }]
+            }
+          }
+        }
+      },
+      "size": 0,
+      "aggs": {
+        "host": {
+          "terms": {
+            "field": "host",
+            "size": 100
+          },
+          "aggs": {
+            "type_instance": {
+              "terms": {
+                "field": "type_instance",
+                "size": 100
+              },
+              "aggs": {
+                "top_tag_hits": {
+                  "top_hits": {
+                    "sort": [{
+                      "@timestamp": {
+                        "order": "desc"
+                      }
+                    }],
+                    "_source": {
+                      "include": [
+                        "value",
+                        "@timestamp"
+                      ]
+                    },
+                    "size": 1
                   }
                 }
               }
@@ -218,29 +283,37 @@
                 "size": 100
               },
               "aggs": {
-                "grade": {
+                "typeInstance": {
                   "terms": {
-                    "field": "grade",
+                    "field": "typeInstance",
                     "size": 100
                   },
                   "aggs": {
-                    "status": {
+                    "grade": {
                       "terms": {
-                        "field": "status",
+                        "field": "grade",
                         "size": 100
                       },
                       "aggs": {
-                        "top_tag_hits": {
-                          "top_hits": {
-                            "sort": [{
-                              "timestamp": {
-                                "order": "desc"
+                        "status": {
+                          "terms": {
+                            "field": "status",
+                            "size": 100
+                          },
+                          "aggs": {
+                            "top_tag_hits": {
+                              "top_hits": {
+                                "sort": [{
+                                  "timestamp": {
+                                    "order": "desc"
+                                  }
+                                }],
+                                "_source": {
+                                  "include": []
+                                },
+                                "size": 1
                               }
-                            }],
-                            "_source": {
-                              "include": []
-                            },
-                            "size": 1
+                            }
                           }
                         }
                       }
@@ -268,7 +341,7 @@
       "danger": 10
     }
   },
-  "serverList": ["sso2", "www1"],
+  "serverList": ["demo", "raspberrypi"],
   "www1": {
     "cpu": {
       "warning": 30,
@@ -318,7 +391,7 @@
         "danger": 10
       }
     },
-    "process": ["a", "b"]
+    "process": ["mq", "redis"]
   },
   "raspberrypi": {
     "cpu": {
