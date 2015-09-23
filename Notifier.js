@@ -206,24 +206,35 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
 
       switch (type) {
         case 'offline':
-          message = '[' + host + ']:ADFMonitoring Agent가 Offline상태입니다.';
+          message = '[' + host + '] ADFMonitoring Agent가 Offline 상태입니다.';
           break;
         case 'cpu':
-          message = '[' + host + ']:CPU사용률이 높습니다.(' + value + ')';
+          message = '[' + host + '] CPU사용률(' + value + ')이 높습니다.';
           break;
         case 'memory':
-          message = '[' + host + ']:가상메모리사용률이 높습니다.(' + value + ')';
+          message = '[' + host + '] 가상메모리사용률(' + value + ')이 높습니다.';
           break;
         case 'df':
-          message = '[' + host + ']:' + typeInstance + ' 파일 시스템의 사용된 공간 백분율(' + value + ')이 높습니다.';
+          message = '[' + host + '] ' + typeInstance + ' 파일시스템의 사용된 공간백분율(' + value + ')이 높습니다.';
           break;
         case 'process':
-          message = '[' + host + ']:*' + typeInstance + '* 프로세스가 kill 되었거나 존재하지 않습니다.';
+          message = '[' + host + '] ' + typeInstance + ' 프로세스가 kill되었거나 존재하지 않습니다.';
           break;
       }
 
-      connection.execute(
-        "insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval, sysdate, :receiver, :sender, :msg, :code1, :code2)", ['01040269329', '024504079', message, 'tivoli', 'tivoli'], // Bind values
+      var sendDate;
+      var d = new Date();
+      var n = d.getHours();
+      logger.info("현재시간:" + n);
+      if (n < 7) {
+        sendDate = " to_date(to_char(sysdate, 'yyyymmdd') || '070100', 'YYYYMMDDHH24MISS') ";
+      } else if (n >= 23) {
+        sendDate = " to_date(to_char(sysdate + 1, 'yyyymmdd') || '070100', 'YYYYMMDDHH24MISS') ";
+      } else {
+        sendDate = " sysdate ";
+      }
+
+      connection.execute("insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval," + sendDate + ", :receiver, :sender, :msg, :code1, :code2)", ['01040269329', '024504079', message, 'tivoli', 'tivoli'], // Bind values
         {
           autoCommit: true
         }, // Override the default non-autocommit behavior
@@ -232,8 +243,32 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
             slackLogger.error(err.message);
             return;
           }
-          console.log("Rows inserted: " + result.rowsAffected); // 1
-          return true;
+          logger.info("Rows inserted: " + result.rowsAffected); // 1
+          if (result.rowsAffected === 1) {
+            //create notified record
+            var d = new Date();
+            client.create({
+              index: 'alert-' + d.yyyymmdd(),
+              type: type,
+              // id: '1',
+              body: {
+                host: host,
+                type: type,
+                typeInstance: typeInstance,
+                sendType: 'sms',
+                timestamp: d,
+                grade: grade,
+                status: 'notified'
+              }
+            }, function(error, response) {
+              if (error) {
+                slackLogger.error(error.message);
+                // Alert slack
+              } else {
+                logger.info(response, 'SMS전송이기록되었습니다');
+              }
+            });
+          }
         });
     });
 }
@@ -241,33 +276,6 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
 function notify(host, type, typeInstance, grade, value, timestamp) {
   //send sms
   var smsSent = sendSMS(host, type, typeInstance, grade, value, timestamp);
-  if (smsSent) {
-    //create notified record
-    var d = new Date();
-    client.create({
-      index: 'alert-' + d.yyyymmdd(),
-      type: type,
-      // id: '1',
-      body: {
-        host: host,
-        type: type,
-        typeInstance: typeInstance,
-        sendType: 'sms',
-        timestamp: d,
-        grade: grade,
-        status: 'notified'
-      }
-    }, function(error, response) {
-      if (error) {
-        slackLogger.error(error.message);
-        // Alert slack
-      } else {
-        logger.info(response, 'SMS전송이기록되었습니다');
-      }
-    });
-  } else {
-    //sms전송실패
-  }
   //send slack
   var chl = slack.getChannelGroupOrDMByID(process.env.CHANNEL || config.get('slack.channel'));
   logger.info(chl.name, '전송슬랙채널');
@@ -305,28 +313,28 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
       grade: grade,
       value: value
     }, 'slack알람이전송되었습니다');
-    //create notified record
-    var d = new Date();
-    client.create({
-      index: 'alert-' + d.yyyymmdd(),
-      type: type,
-      // id: '1',
-      body: {
-        host: host,
-        type: type,
-        typeInstance: typeInstance,
-        sendType: 'slack',
-        timestamp: d,
-        grade: grade,
-        status: 'notified'
-      }
-    }, function(error, response) {
-      if (error) {
-        slackLogger.error(error.message);
-        // Alert slack
-      } else {
-        logger.info(response, 'slack전송이기록되었습니다');
-      }
-    });
+    // //create notified record
+    // var d = new Date();
+    // client.create({
+    //   index: 'alert-' + d.yyyymmdd(),
+    //   type: type,
+    //   // id: '1',
+    //   body: {
+    //     host: host,
+    //     type: type,
+    //     typeInstance: typeInstance,
+    //     sendType: 'slack',
+    //     timestamp: d,
+    //     grade: grade,
+    //     status: 'notified'
+    //   }
+    // }, function(error, response) {
+    //   if (error) {
+    //     slackLogger.error(error.message);
+    //     // Alert slack
+    //   } else {
+    //     logger.info(response, 'slack전송이기록되었습니다');
+    //   }
+    // });
   }
 }

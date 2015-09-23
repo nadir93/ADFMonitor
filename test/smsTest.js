@@ -3,7 +3,6 @@ var assert = require('assert');
 
 describe('smsTest\n\t\tenv :' + '\n\t\tfile : smsTest.js',
   function() {
-
     describe('sms테스트', function() {
       it('sms 테스트', function(done) {
         this.timeout(5000);
