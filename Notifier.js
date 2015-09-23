@@ -1,4 +1,5 @@
 var util = require('util');
+var oracledb = require('oracledb');
 var schedule = require('node-schedule');
 var elasticsearch = require('elasticsearch');
 var Message = require('./message');
@@ -156,7 +157,7 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function()
           logger.debug('타입=' + hosts[hostId].key + ':' + types[typesId].key);
           var typeInstances = types[typesId].typeInstance.buckets;
           for (typeInstanceId in typeInstances) {
-            logger.debug('타입=' + hosts[hostId].key + ':' + types[typesId].key + ':' + typeInstances[typeInstanceId].key);
+            logger.debug('타입인스턴스=' + hosts[hostId].key + ':' + types[typesId].key + ':' + typeInstances[typeInstanceId].key);
             var alarm = true;
             var grade;
             var value;
@@ -190,10 +191,66 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */ , function()
     });
 });
 
+function sendSMS(host, type, typeInstance, grade, value, timestamp) {
+  oracledb.getConnection({
+      user: process.env.user,
+      password: process.env.password,
+      connectString: process.env.connString,
+    },
+    function(err, connection) {
+      if (err) {
+        slackLogger.error(err.message);
+        return;
+      }
+      connection.execute(
+        "insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval, sysdate, :receiver, :sender, :msg, :code1, :code2)", ['01040269329', '024504079', '한글테스트입니다', 'tivoli', 'tivoli'], // Bind values
+        {
+          autoCommit: true
+        }, // Override the default non-autocommit behavior
+        function(err, result) {
+          if (err) {
+            slackLogger.error(err.message);
+            return;
+          }
+          console.log("Rows inserted: " + result.rowsAffected); // 1
+          return result.rowsAffected;
+        });
+    });
+}
+
 function notify(host, type, typeInstance, grade, value, timestamp) {
+  //send sms
+  var smsSent = sendSMS(host, type, typeInstance, grade, value, timestamp);
+  if (smsSent) {
+    //create notified record
+    var d = new Date();
+    client.create({
+      index: 'alert-' + d.yyyymmdd(),
+      type: type,
+      // id: '1',
+      body: {
+        host: host,
+        type: type,
+        typeInstance: typeInstance,
+        sendType: 'sms'
+        timestamp: d,
+        grade: grade,
+        status: 'notified'
+      }
+    }, function(error, response) {
+      if (error) {
+        slackLogger.error(error.message);
+        // Alert slack
+      } else {
+        logger.info(response, 'SMS전송이기록되었습니다');
+      }
+    });
+  } else {
+    //sms전송실패
+  }
   //send slack
   var chl = slack.getChannelGroupOrDMByID(process.env.CHANNEL || config.get('slack.channel'));
-  logger.info(chl.name, 'slackChannel');
+  logger.info(chl.name, '전송슬랙채널');
   if (chl) {
     var msg = new Message(slack, {
       username: '에이디플로우알림이',
@@ -227,7 +284,7 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
       typeInstance: typeInstance,
       grade: grade,
       value: value
-    }, '알람이전송되었습니다');
+    }, 'slack알람이전송되었습니다');
     //create notified record
     var d = new Date();
     client.create({
@@ -238,6 +295,7 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
         host: host,
         type: type,
         typeInstance: typeInstance,
+        sendType: 'slack'
         timestamp: d,
         grade: grade,
         status: 'notified'
@@ -247,7 +305,7 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
         slackLogger.error(error.message);
         // Alert slack
       } else {
-        logger.info(response, '알람전송이기록되었습니다');
+        logger.info(response, 'slack전송이기록되었습니다');
       }
     });
   }
