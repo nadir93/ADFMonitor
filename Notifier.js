@@ -202,8 +202,28 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
         slackLogger.error(err.message);
         return;
       }
+      var message;
+
+      switch (type) {
+        case 'offline':
+          message = '[' + host + ']:ADFMonitoring Agent가 Offline상태입니다.';
+          break;
+        case 'cpu':
+          message = '[' + host + ']:CPU사용률이 높습니다.(' + value + ')';
+          break;
+        case 'memory':
+          message = '[' + host + ']:가상메모리사용률이 높습니다.(' + value + ')';
+          break;
+        case 'df':
+          message = '[' + host + ']:' + typeInstance + ' 파일 시스템의 사용된 공간 백분율(' + value + ')이 높습니다.';
+          break;
+        case 'process':
+          message = '[' + host + ']:*' + typeInstance + '* 프로세스가 kill 되었거나 존재하지 않습니다.';
+          break;
+      }
+
       connection.execute(
-        "insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval, sysdate, :receiver, :sender, :msg, :code1, :code2)", ['01040269329', '024504079', '한글테스트입니다', 'tivoli', 'tivoli'], // Bind values
+        "insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval, sysdate, :receiver, :sender, :msg, :code1, :code2)", ['01040269329', '024504079', message, 'tivoli', 'tivoli'], // Bind values
         {
           autoCommit: true
         }, // Override the default non-autocommit behavior
@@ -213,7 +233,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
             return;
           }
           console.log("Rows inserted: " + result.rowsAffected); // 1
-          return result.rowsAffected;
+          return true;
         });
     });
 }
@@ -232,7 +252,7 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
         host: host,
         type: type,
         typeInstance: typeInstance,
-        sendType: 'sms'
+        sendType: 'sms',
         timestamp: d,
         grade: grade,
         status: 'notified'
@@ -295,7 +315,7 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
         host: host,
         type: type,
         typeInstance: typeInstance,
-        sendType: 'slack'
+        sendType: 'slack',
         timestamp: d,
         grade: grade,
         status: 'notified'
