@@ -291,7 +291,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
           {
             autoCommit: true
           }, // Override the default non-autocommit behavior
-          function(err, result) {
+          function(err, result, receiverID) {
             if (err) {
               slackLogger.error(err.message);
               return;
