@@ -227,21 +227,22 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
 
       for (userID in users) {
         var alerts = users[userID].alert;
-        logger.info(users[userID].alert);
+        logger.info({
+          phone: users[userID].phone,
+          alert: users[userID].alert
+        }, users[userID].name);
         for (alertID in alerts) {
           if (!alerts[alertID].host) {
-            console.log(alerts[alertID]);
             if (alerts[alertID] === 'all') {
               logger.info({
                 host: 'all',
                 type: 'all',
                 receiver: users[userID].name,
                 phone: users[userID].phone
-              });
+              }, '전송리스트추가');
               receivers.push(users[userID].phone);
             }
           } else {
-            console.log(alerts[alertID].host);
             if (alerts[alertID].host === host) {
               var types = alerts[alertID].type;
               for (typeID in types) {
@@ -251,7 +252,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
                     type: 'all',
                     receiver: users[userID].name,
                     phone: users[userID].phone
-                  });
+                  }, '전송리스트추가');
                   receivers.push(users[userID].phone);
                 } else if (types[typeID] === type) {
                   logger.info({
@@ -259,7 +260,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
                     type: type,
                     receiver: users[userID].name,
                     phone: users[userID].phone
-                  });
+                  }, '전송리스트추가');
                   receivers.push(users[userID].phone);
                 }
               }
@@ -269,7 +270,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
       }
 
       logger.info({
-        receiver: users[userID].name
+        receivers: receivers
       }, 'SMS전송리스트');
 
       var sendDate;
@@ -300,7 +301,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
             });
             if (result.rowsAffected === 1) {
               logger.info({
-                receiver: receiver,
+                receiver: receivers[receiverID],
                 sender: sender,
                 message: message
               }, 'SMS전송완료');
