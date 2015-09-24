@@ -287,50 +287,54 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
       var sender = '024504079';
 
       for (receiverID in receivers) {
-        connection.execute("insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval," + sendDate + ", :receiver, :sender, :msg, :code1, :code2)", [receivers[receiverID], sender, message, 'tivoli', 'tivoli'], // Bind values
-          {
-            autoCommit: true
-          }, // Override the default non-autocommit behavior
-          function(err, result, receiverID) {
-            if (err) {
-              slackLogger.error(err.message);
-              return;
-            }
-            logger.info({
-              '입력레코드수': result.rowsAffected
-            });
-            if (result.rowsAffected === 1) {
-              logger.info({
-                receiver: receivers[receiverID],
-                sender: sender,
-                message: message
-              }, 'SMS전송완료');
-              //create notified record
-              var d = new Date();
-              client.create({
-                index: 'alert-' + d.yyyymmdd(),
-                type: type,
-                // id: '1',
-                body: {
-                  host: host,
-                  type: type,
-                  typeInstance: typeInstance,
-                  sendType: 'sms',
-                  receiver: receivers[receiverID],
-                  timestamp: d,
-                  grade: grade,
-                  status: 'notified'
-                }
-              }, function(error, response) {
-                if (error) {
-                  slackLogger.error(error.message);
-                  // Alert slack
-                } else {
-                  logger.info(response, 'SMS전송이기록되었습니다');
-                }
-              });
-            }
-          });
+        insertSMS(sendDate, receivers[receiverID], sender, message, host, type, typeInstance, grade);
+      }
+    });
+}
+
+function insertSMS(sendDate, receiver, sender, message, host, type, typeInstance, grade) {
+  connection.execute("insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval," + sendDate + ", :receiver, :sender, :msg, :code1, :code2)", [receiver, sender, message, 'tivoli', 'tivoli'], // Bind values
+    {
+      autoCommit: true
+    }, // Override the default non-autocommit behavior
+    function(err, result) {
+      if (err) {
+        slackLogger.error(err.message);
+        return;
+      }
+      logger.info({
+        '입력레코드수': result.rowsAffected
+      });
+      if (result.rowsAffected === 1) {
+        logger.info({
+          receiver: receiver,
+          sender: sender,
+          message: message
+        }, 'SMS전송완료');
+        //create notified record
+        var d = new Date();
+        client.create({
+          index: 'alert-' + d.yyyymmdd(),
+          type: type,
+          // id: '1',
+          body: {
+            host: host,
+            type: type,
+            typeInstance: typeInstance,
+            sendType: 'sms',
+            receiver: receiver,
+            timestamp: d,
+            grade: grade,
+            status: 'notified'
+          }
+        }, function(error, response) {
+          if (error) {
+            slackLogger.error(error.message);
+            // Alert slack
+          } else {
+            logger.info(response, 'SMS전송이기록되었습니다');
+          }
+        });
       }
     });
 }
