@@ -64,7 +64,7 @@
                 }
               }, {
                 "term": {
-                  "plugin": "memory"
+                  "plugin": "vmemory"
                 }
               }]
             }
@@ -437,5 +437,9 @@
       "host": "sso2",
       "type": ["all"]
     }]
+  }, {
+    "name": "용환철",
+    "phone": "01087692760",
+    "alert": ["all"]
   }]
 }
