@@ -211,7 +211,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
         case 'cpu':
           message = '[' + host + '] CPU사용률(' + value + ')이 높습니다.';
           break;
-        case 'memory':
+        case 'vmemory':
           message = '[' + host + '] 가상메모리사용률(' + value + ')이 높습니다.';
           break;
         case 'df':
@@ -352,11 +352,11 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
       username: '에이디플로우알림이',
       icon_emoji: ':adflowalert:',
       attachments: [{
-        "fallback": host + ' ' + ((type == 'cpu' || type == 'memory') ? type + '사용률' : ((type == 'df') ? typeInstance + '디스크사용률' : ((type == 'process') ? typeInstance + '프로세스' : type))) + ' ' + value,
+        "fallback": host + ' ' + ((type == 'cpu' || type == 'vmemory') ? type + '사용률' : ((type == 'df') ? typeInstance + '디스크사용률' : ((type == 'process') ? typeInstance + '프로세스' : type))) + ' ' + value,
         //"pretext": resp.aggregations.host.buckets[0].key,
         "title": host,
         "fields": [{
-            "title": (type == 'cpu' || type == 'memory') ? type + '사용률' : ((type == 'df') ? typeInstance + '디스크사용률' : ((type == 'process') ? typeInstance + '프로세스' : type)),
+            "title": (type == 'cpu' || type == 'vmemory') ? type + '사용률' : ((type == 'df') ? typeInstance + '디스크사용률' : ((type == 'process') ? typeInstance + '프로세스' : type)),
             "value": value,
             "short": true
           }, {

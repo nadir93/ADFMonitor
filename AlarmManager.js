@@ -328,7 +328,7 @@ schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */ , functi
         for (pluginId in plugins) {
           logger.debug('플러그인=' + hosts[hostId].key + ':' + plugins[pluginId].key);
           var pluginTypes = plugins[pluginId].type_instance.buckets
-          if (plugins[pluginId].key == 'memory') {
+          if (plugins[pluginId].key == 'vmemory') {
             // 메모리 처리
             processMemory(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
           } else if (plugins[pluginId].key == 'cpu') {
@@ -349,19 +349,50 @@ function processMemory(host, type, instance) {
   logger.debug(instance);
   var total = 0;
   var free;
+  var used;
   for (id in instance) {
     total = total + instance[id].avg.value;
     if (instance[id].key == 'free') {
       free = instance[id].avg.value;
+    } else if (instance[id].key == 'used') {
+      used = instance[id].avg.value;
     }
   }
-  var memoryUsage = (100 - (free / total * 100)).toFixed(2) + '%';
+  var memoryUsage = used + '%';
+
   logger.info({
     host: host,
-    totalMemory: bytesToSize(total),
-    freeMemory: bytesToSize(free),
-    메모리사용률: memoryUsage
+    usedMemory: memoryUsage,
+    freeMemory: free + '%',
   });
+
+  var danger = config.get(host + '.memory.danger') || config.get('default.memory.danger');
+  var warning = config.get(host + '.memory.warning') || config.get('default.memory.warning');
+
+  if (free < danger) {
+    logger.error({
+      host: host,
+      grade: 'danger',
+      status: 'created',
+      value: memoryUsage
+    }, '가상메모리위험발생');
+    alert(host, type, memoryUsage, 'danger', 'created', 'all');
+  } else if (free < warning) {
+    logger.error({
+      host: host,
+      grade: 'warning',
+      status: 'created',
+      value: memoryUsage
+    }, '가상메모리경고발생');
+    alert(host, type, memoryUsage, 'warning', 'created', 'all');
+  }
+
+  // logger.info({
+  //   host: host,
+  //   totalMemory: bytesToSize(total),
+  //   freeMemory: bytesToSize(free),
+  //   메모리사용률: memoryUsage
+  // });
 }
 
 //cpu 처리
