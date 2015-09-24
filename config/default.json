@@ -341,7 +341,7 @@
       "danger": 10
     }
   },
-  "serverList": ["demo", "raspberrypi"],
+  "serverList": ["www1", "sso2"],
   "www1": {
     "cpu": {
       "warning": 30,
@@ -357,7 +357,7 @@
         "danger": 10
       }
     },
-    "process": ["a", "b"]
+    "process": ["kuxagent"]
   },
   "sso2": {
     "cpu": {
@@ -374,7 +374,7 @@
         "danger": 10
       }
     },
-    "process": ["a", "b"]
+    "process": ["java"]
   },
   "demo": {
     "cpu": {
@@ -412,5 +412,30 @@
         "danger": 10
       }
     }
-  }
+  },
+  "users": [{
+    "name": "박택영",
+    "phone": "01040269329",
+    "alert": ["all"]
+  }, {
+    "name": "조광일",
+    "phone": "01087188047",
+    "alert": [{
+      "host": "www1",
+      "type": ["all"]
+    }, {
+      "host": "sso2",
+      "type": ["offline", "cpu", "memory"]
+    }]
+  }, {
+    "name": "이찬호",
+    "phone": "01087188047",
+    "alert": [{
+      "host": "www1",
+      "type": ["all"]
+    }, {
+      "host": "sso2",
+      "type": ["all"]
+    }]
+  }]
 }

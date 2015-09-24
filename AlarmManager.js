@@ -178,6 +178,7 @@ function processProcess(host, processName, instance) {
   }
 
   if (!exists) {
+    logger.info(processName + '프로세스가관리대상이아닙니다');
     return;
   }
 
@@ -380,7 +381,10 @@ function processCPU(host, type, instance) {
     cpu사용률: cpuUsage
   });
 
-  if (idle < config.get('default.cpu.danger')) {
+  var danger = config.get(host + '.cpu.danger') || config.get('default.cpu.danger');
+  var warning = config.get(host + '.cpu.warning') || config.get('default.cpu.warning');
+
+  if (idle < danger) {
     logger.error({
       host: host,
       grade: 'danger',
@@ -388,7 +392,7 @@ function processCPU(host, type, instance) {
       value: cpuUsage
     }, 'cpu위험발생');
     alert(host, type, cpuUsage, 'danger', 'created', 'all');
-  } else if (idle < config.get('default.cpu.warning')) {
+  } else if (idle < warning) {
     logger.error({
       host: host,
       grade: 'warning',

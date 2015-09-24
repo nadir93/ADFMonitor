@@ -212,7 +212,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
           message = '[' + host + '] CPU사용률(' + value + ')이 높습니다.';
           break;
         case 'memory':
-          message = '[' + host + '] 가상메모리사용률(' + value + ')이 높습니다.';
+          message = '[' + host + '] 가상메모리사용률(' + value + ')이 높습니다.';
           break;
         case 'df':
           message = '[' + host + '] ' + typeInstance + ' 파일시스템의 사용된 공간백분율(' + value + ')이 높습니다.';
@@ -221,6 +221,56 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
           message = '[' + host + '] ' + typeInstance + ' 프로세스가 kill되었거나 존재하지 않습니다.';
           break;
       }
+
+      var receivers = []; //'01040269329';
+      var users = config.get('users')
+
+      for (userID in users) {
+        var alerts = users[userID].alert;
+        logger.info(users[userID].alert);
+        for (alertID in alerts) {
+          if (!alerts[alertID].host) {
+            console.log(alerts[alertID]);
+            if (alerts[alertID] === 'all') {
+              logger.info({
+                host: 'all',
+                type: 'all',
+                receiver: users[userID].name,
+                phone: users[userID].phone
+              });
+              receivers.push(users[userID].phone);
+            }
+          } else {
+            console.log(alerts[alertID].host);
+            if (alerts[alertID].host === host) {
+              var types = alerts[alertID].type;
+              for (typeID in types) {
+                if (types[typeID] === 'all') {
+                  logger.info({
+                    host: host,
+                    type: 'all',
+                    receiver: users[userID].name,
+                    phone: users[userID].phone
+                  });
+                  receivers.push(users[userID].phone);
+                } else if (types[typeID] === type) {
+                  logger.info({
+                    host: host,
+                    type: type,
+                    receiver: users[userID].name,
+                    phone: users[userID].phone
+                  });
+                  receivers.push(users[userID].phone);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      logger.info({
+        receiver: users[userID].name
+      }, 'SMS전송리스트');
 
       var sendDate;
       var d = new Date();
@@ -233,62 +283,75 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
       } else {
         sendDate = " sysdate ";
       }
+      var sender = '024504079';
 
-      connection.execute("insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval," + sendDate + ", :receiver, :sender, :msg, :code1, :code2)", ['01040269329', '024504079', message, 'tivoli', 'tivoli'], // Bind values
-        {
-          autoCommit: true
-        }, // Override the default non-autocommit behavior
-        function(err, result) {
-          if (err) {
-            slackLogger.error(err.message);
-            return;
-          }
-          logger.info("Rows inserted: " + result.rowsAffected); // 1
-          if (result.rowsAffected === 1) {
-            //create notified record
-            var d = new Date();
-            client.create({
-              index: 'alert-' + d.yyyymmdd(),
-              type: type,
-              // id: '1',
-              body: {
-                host: host,
-                type: type,
-                typeInstance: typeInstance,
-                sendType: 'sms',
-                timestamp: d,
-                grade: grade,
-                status: 'notified'
-              }
-            }, function(error, response) {
-              if (error) {
-                slackLogger.error(error.message);
-                // Alert slack
-              } else {
-                logger.info(response, 'SMS전송이기록되었습니다');
-              }
+      for (receiverID in receivers) {
+        connection.execute("insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval," + sendDate + ", :receiver, :sender, :msg, :code1, :code2)", [receivers[receiverID], sender, message, 'tivoli', 'tivoli'], // Bind values
+          {
+            autoCommit: true
+          }, // Override the default non-autocommit behavior
+          function(err, result) {
+            if (err) {
+              slackLogger.error(err.message);
+              return;
+            }
+            logger.info({
+              '입력레코드수': result.rowsAffected
             });
-          }
-        });
+            if (result.rowsAffected === 1) {
+              logger.info({
+                receiver: receiver,
+                sender: sender,
+                message: message
+              }, 'SMS전송완료');
+              //create notified record
+              var d = new Date();
+              client.create({
+                index: 'alert-' + d.yyyymmdd(),
+                type: type,
+                // id: '1',
+                body: {
+                  host: host,
+                  type: type,
+                  typeInstance: typeInstance,
+                  sendType: 'sms',
+                  receiver: receivers[receiverID],
+                  timestamp: d,
+                  grade: grade,
+                  status: 'notified'
+                }
+              }, function(error, response) {
+                if (error) {
+                  slackLogger.error(error.message);
+                  // Alert slack
+                } else {
+                  logger.info(response, 'SMS전송이기록되었습니다');
+                }
+              });
+            }
+          });
+      }
     });
 }
 
 function notify(host, type, typeInstance, grade, value, timestamp) {
   //send sms
-  var smsSent = sendSMS(host, type, typeInstance, grade, value, timestamp);
+  sendSMS(host, type, typeInstance, grade, value, timestamp);
   //send slack
   var chl = slack.getChannelGroupOrDMByID(process.env.CHANNEL || config.get('slack.channel'));
-  logger.info(chl.name, '전송슬랙채널');
+  logger.info({
+    '전송채널': chl.name
+  });
   if (chl) {
     var msg = new Message(slack, {
       username: '에이디플로우알림이',
       icon_emoji: ':adflowalert:',
       attachments: [{
-        "fallback": host + ' ' + ((type == 'cpu' || type == 'memory') ? type + '사용량' : ((type == 'df') ? typeInstance + '디스크사용량' : ((type == 'process') ? typeInstance + '프로세스' : type))) + ' ' + value,
+        "fallback": host + ' ' + ((type == 'cpu' || type == 'memory') ? type + '사용률' : ((type == 'df') ? typeInstance + '디스크사용률' : ((type == 'process') ? typeInstance + '프로세스' : type))) + ' ' + value,
         //"pretext": resp.aggregations.host.buckets[0].key,
         "title": host,
         "fields": [{
-            "title": (type == 'cpu' || type == 'memory') ? type + '사용량' : ((type == 'df') ? typeInstance + '디스크사용량' : ((type == 'process') ? typeInstance + '프로세스' : type)),
+            "title": (type == 'cpu' || type == 'memory') ? type + '사용률' : ((type == 'df') ? typeInstance + '디스크사용률' : ((type == 'process') ? typeInstance + '프로세스' : type)),
             "value": value,
             "short": true
           }, {
