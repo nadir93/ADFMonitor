@@ -287,12 +287,12 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
       var sender = '024504079';
 
       for (receiverID in receivers) {
-        insertSMS(sendDate, receivers[receiverID], sender, message, host, type, typeInstance, grade);
+        insertSMS(connection, sendDate, receivers[receiverID], sender, message, host, type, typeInstance, grade);
       }
     });
 }
 
-function insertSMS(sendDate, receiver, sender, message, host, type, typeInstance, grade) {
+function insertSMS(connection, sendDate, receiver, sender, message, host, type, typeInstance, grade) {
   connection.execute("insert into sms (sm_number, sm_indate, sm_sdmbno, sm_rvmbno, sm_msg, sm_code1, sm_code2) values (sms_seq.nextval," + sendDate + ", :receiver, :sender, :msg, :code1, :code2)", [receiver, sender, message, 'tivoli', 'tivoli'], // Bind values
     {
       autoCommit: true
