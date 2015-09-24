@@ -212,7 +212,7 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
           message = '[' + host + '] CPU사용률(' + value + ')이 높습니다.';
           break;
         case 'vmemory':
-          message = '[' + host + '] 가상메모리사용률(' + value + ')이 높습니다.';
+          message = '[' + host + '] 가상메모리사용률(' + value + ')이 높습니다.';
           break;
         case 'df':
           message = '[' + host + '] ' + typeInstance + ' 파일시스템의 사용된 공간백분율(' + value + ')이 높습니다.';

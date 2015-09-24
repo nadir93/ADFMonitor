@@ -25,7 +25,7 @@ describe('메모리알람테스트\n\t\tenv :' + url + '\n\t\tfile : memoryAlert
     var d = new Date();
     var data = {
       host: "테스트",
-      type: "memory",
+      type: "vmemory",
       typeInstance: 'all',
       timestamp: d,
       value: "92%",
@@ -38,7 +38,7 @@ describe('메모리알람테스트\n\t\tenv :' + url + '\n\t\tfile : memoryAlert
       it('메모리알람테스트', function(done) {
         this.timeout(5000);
         request(url)
-          .post('/alert-' + d.yyyymmdd() + '/memory')
+          .post('/alert-' + d.yyyymmdd() + '/vmemory')
           .send(data)
           .expect(201)
           .end(function(err, res) {

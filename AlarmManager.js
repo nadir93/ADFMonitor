@@ -46,7 +46,7 @@ var BunyanSlack = require('bunyan-slack'),
     }),
     level: "error"
   });
-//slackLogger.error("알람매니저가시작되었습니다");
+slackLogger.error("알람매니저가시작되었습니다");
 var serverList = config.get('serverList');
 
 // index용 날짜 포맷
