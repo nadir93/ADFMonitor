@@ -341,7 +341,24 @@
       "danger": 10
     }
   },
-  "serverList": ["www1", "sso2"],
+  "serverList": ["www1", "sso2", "tisoda2", "tist"],
+  "tisoda2": {
+    "cpu": {
+      "warning": 30,
+      "danger": 10
+    },
+    "memory": {
+      "warning": 30,
+      "danger": 10
+    },
+    "disk": {
+      "root": {
+        "warning": 30,
+        "danger": 10
+      }
+    },
+    "process": ["osysmond.bin"]
+  },
   "www1": {
     "cpu": {
       "warning": 30,
@@ -446,8 +463,8 @@
     "phone": "01092047840",
     "alert": ["all"]
   }, {
-      "name": "최영준",
-      "phone": "01051892999",
-      "alert": ["all"]
+    "name": "최영준",
+    "phone": "01051892999",
+    "alert": ["all"]
   }]
 }
