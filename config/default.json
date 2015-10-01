@@ -342,6 +342,23 @@
     }
   },
   "serverList": ["www1", "sso2", "tisoda2", "tist"],
+  "tist": {
+    "cpu": {
+      "warning": 30,
+      "danger": 10
+    },
+    "memory": {
+      "warning": 30,
+      "danger": 10
+    },
+    "disk": {
+      "root": {
+        "warning": 30,
+        "danger": 10
+      }
+    },
+    "process": [""]
+  },
   "tisoda2": {
     "cpu": {
       "warning": 30,
@@ -459,7 +476,7 @@
     "phone": "01087692760",
     "alert": ["all"]
   }, {
-    "name": "권근필",
+    "name": "권근필",
     "phone": "01092047840",
     "alert": ["all"]
   }, {
