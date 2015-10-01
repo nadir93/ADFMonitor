@@ -425,7 +425,7 @@
       "type": ["all"]
     }, {
       "host": "sso2",
-      "type": ["offline", "cpu", "memory"]
+      "type": ["offline", "cpu", "vmemory"]
     }]
   }, {
     "name": "이찬호",
@@ -440,6 +440,10 @@
   }, {
     "name": "용환철",
     "phone": "01087692760",
+    "alert": ["all"]
+  }, {
+    "name": "권근필",
+    "phone": "01092047840",
     "alert": ["all"]
   }]
 }
