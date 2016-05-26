@@ -60,9 +60,6 @@ Date.prototype.getToday = function () {
 //    var dd = this.getDate().toString();
 //    return yyyy + '.' + (mm[1] ? mm : "0" + mm[0]) + '.' + (dd[1] ? dd : "0" + dd[0]); // padding
 
-"AlarmManager.js" 639L, 22572C
-//    return yyyy + '.' + (mm[1] ? mm : "0" + mm[0]) + '.' + (dd[1] ? dd : "0" + dd[0]); // padding
-
     var yyyy = this.getUTCFullYear().toString();
     var mm = (this.getUTCMonth() + 1).toString(); // getMonth() is zero-based
     var dd = this.getUTCDate().toString();
@@ -123,10 +120,8 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */, function (
                 수행시간: resp.took + 'ms',
                 검색된문서: resp.hits.total
             }, '오프라인점검이완료되었습니다');
-                검색된문서: resp.hits.total
-            }, '오프라인점검이완료되었습니다');
 
-            //임시코드임
+            //임시코드임 
             if(resp.took > 1000 && resp.hits.total ==0){
                 slackLogger.error('오프라인검색이비정상입니다확인요망!!!!');
                 return;
@@ -183,8 +178,6 @@ schedule.scheduleJob(config.get('offline.schedule') /* 1분마다 */, function (
                         if (offlineServers[offlineSererId] == serverList[id]) {
                             //send alert
                             alert(serverList[id], 'online', '', 'green', 'created', 'on');
-                            deletedNum = offlineSererId;
-                        }
                             deletedNum = offlineSererId;
                         }
                     }
@@ -247,8 +240,6 @@ schedule.scheduleJob(config.get('process.schedule') /* 1분마다 */, function (
 
 //프로세스 처리
 function processProcess(host, processName, instance) {
-//프로세스 처리
-function processProcess(host, processName, instance) {
     logger.debug({
         data: instance
     }, '데이타');
@@ -297,7 +288,7 @@ function processProcess(host, processName, instance) {
             value: '프로세스가중지되었습니다'
         }, 'process위험발생');
         alert(host, 'process', 'down', 'danger', 'created', processName);
-    }
+    }  
 
     // var total = 0;
     // var free;
@@ -307,8 +298,6 @@ function processProcess(host, processName, instance) {
     //     free = instance[id].avg.value;
     //   }
     // }
-    // var memoryUsage = (100 - (free / total * 100)).toFixed(2) + '%';
-    // logger.info({
     // var memoryUsage = (100 - (free / total * 100)).toFixed(2) + '%';
     // logger.info({
     //   host: host,
@@ -369,7 +358,6 @@ function processDisk(host, type, typeInstance, instance) {
         } else if (instance[id].key == 'reserved') {
             reserved = instance[id].avg.value;
         }
-    }
     }
 
     //logger.info('free=' + free);
@@ -432,8 +420,6 @@ function processDisk(host, type, typeInstance, instance) {
     }
     //}
 }
-    //}
-}
 
 // cpu& memory
 logger.info('cpu&memory점검주기=' + config.get('cpu&memory.schedule'));
@@ -472,7 +458,7 @@ schedule.scheduleJob(config.get('cpu&memory.schedule') /* 1분마다 */, functio
                         processCPU(hosts[hostId].key, plugins[pluginId].key, pluginTypes);
                     } else {
                         logger.info('host='+hosts[hostId].key+', plugin='+plugins[pluginId].key+', doc_count='+plugins[pluginId].doc_count+' 문서수량부족');
-                    }
+		    }
                 }
             }
         },
@@ -492,8 +478,6 @@ function processMemory(host, type, instance) {
         total = total + instance[id].avg.value;
         if (instance[id].key == 'free') {
             free = instance[id].avg.value;
-        } else if (instance[id].key == 'used') {
-            used = instance[id].avg.value;
         } else if (instance[id].key == 'used') {
             used = instance[id].avg.value;
         }
@@ -554,8 +538,6 @@ function processCPU(host, type, instance) {
     for (id in instance) {
         if (instance[id].key == 'idle') {
             idle = instance[id].avg.value;
-        }
-    }
         }
     }
 
@@ -635,7 +617,7 @@ function alert(host, type, value, grade, status, typeInstance) {
             slackLogger.error(error.message);
             // Alert slack
         } else {
-            logger.error(response, '알람생성결과');
+            logger.error(response, '알람생성결과');
         }
     });
 }
@@ -654,3 +636,4 @@ function bytesToSize(bytes) {
 // 3. 하루 처리 통계치를 슬랙으로 저녁 6시쯤 전송한다.
 // 4. delete indices - 일정시간이상 지나는 인덱스 삭제
 // 5. logstash 시간 체크해볼것 gmt + 9
+

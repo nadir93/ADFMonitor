@@ -60,9 +60,6 @@ var pluginList = ['cpu', 'memory', 'disk', 'process', 'offline'];
 
 var autoMark, autoReconnect, slack, token;
 token = process.env.TOKEN || config.get('slack.token');
-"Notifier.js" 498L, 20158C
-var autoMark, autoReconnect, slack, token;
-token = process.env.TOKEN || config.get('slack.token');
 autoReconnect = true;
 autoMark = true;
 slack = new Slack(token, autoReconnect, autoMark);
@@ -118,14 +115,12 @@ slack.on('message', function (message) {
     logger.info("Received: " + type + " " + channelName + " " + userName + " " + ts + " \"" + text + "\"");
     if (type === 'message' && (text != null) && (channel != null)) {
         var commands = text.split(' ');
-        console.log('commands='+util.inspect(commands));
-
-        // 알람 snooze 기능
+        console.log('commands='+util.inspect(commands));  
+       
+        // 알람 snooze 기능  
         if(commands && commands[0] === 'snooze')
         {
-        if(commands && commands[0] === 'snooze')
-        {
-            //host validation check
+	    //host validation check
             var host = commands[1];
             console.log('host='+host);
             var exists = false;
@@ -134,10 +129,10 @@ slack.on('message', function (message) {
                     exists = true;
                 }
             }
-
+            
             if(!exists)
             {
-                logger.error('호스트가 존재하지 않습니다');
+	        logger.error('호스트가 존재하지 않습니다');
                 channel.send('호스트가 존재하지 않습니다');
                 return;
             }
@@ -158,7 +153,7 @@ slack.on('message', function (message) {
                  return;
             }
 
-            logger.info('input=' + commands.join(''));
+	    logger.info('input=' + commands.join(''));
         }
         response = text.split('').reverse().join('');
         channel.send(response);
@@ -183,8 +178,6 @@ slack.login();
 Date.prototype.yyyymmdd = function () {
     var yyyy = this.getFullYear().toString();
     var mm = (this.getMonth() + 1).toString(); // getMonth() is zero-based
-    var dd = this.getDate().toString();
-    return yyyy + '.' + (mm[1] ? mm : "0" + mm[0]) + '.' + (dd[1] ? dd : "0" + dd[0]); // padding
     var dd = this.getDate().toString();
     return yyyy + '.' + (mm[1] ? mm : "0" + mm[0]) + '.' + (dd[1] ? dd : "0" + dd[0]); // padding
 };
@@ -247,15 +240,13 @@ schedule.scheduleJob(config.get('alert.schedule') /* 30초마다 */, function ()
 
 // index용 날짜 포맷 GMT 0
 Date.prototype.getToday = function () {
-// index용 날짜 포맷 GMT 0
-Date.prototype.getToday = function () {
 
     var mm = (this.getMonth() + 1).toString(); // getMonth() is zero-based
     var dd = this.getDate().toString();
     var h = addZero(this.getHours(), 2);
     var m = addZero(this.getMinutes(), 2);
     var s = addZero(this.getSeconds(), 2);
-
+    
     return (mm[1] ? mm : "0" + mm[0]) + '.' + (dd[1] ? dd : "0" + dd[0])+' '+h+':'+m+':'+s;
 };
 
@@ -307,8 +298,6 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
             var users = config.get('users')
 
             for (userID in users) {
-                var alerts = users[userID].alert;
-                logger.info({
                 var alerts = users[userID].alert;
                 logger.info({
                     phone: users[userID].phone,
@@ -371,8 +360,6 @@ function sendSMS(host, type, typeInstance, grade, value, timestamp) {
 
             for (receiverID in receivers) {
                 insertSMS(connection, sendDate, receivers[receiverID], sender, message, host, type, typeInstance, grade);
-            for (receiverID in receivers) {
-                insertSMS(connection, sendDate, receivers[receiverID], sender, message, host, type, typeInstance, grade);
             }
         });
 }
@@ -431,8 +418,6 @@ function insertSMS(connection, sendDate, receiver, sender, message, host, type, 
                         logger.info(response, 'SMS전송이기록되었습니다');
                     }
                 });
-            }
-            doRelease(connection);
             }
             doRelease(connection);
         });
@@ -495,8 +480,6 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
         //     host: host,
         //     type: type,
         //     typeInstance: typeInstance,
-        //     type: type,
-        //     typeInstance: typeInstance,
         //     sendType: 'slack',
         //     timestamp: d,
         //     grade: grade,
@@ -512,3 +495,4 @@ function notify(host, type, typeInstance, grade, value, timestamp) {
         // });
     }
 }
+
