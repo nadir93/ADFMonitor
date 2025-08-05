@@ -4,9 +4,10 @@
  */
 'use strict';
 
+const EventEmitter = require('events');
 const util = require('util');
 const config = require('config');
-const LogClass = require('lib/log_to_bunyan');
+const LogClass = require('./log_to_bunyan');
 const schedule = require('node-schedule');
 const elasticsearch = require('elasticsearch');
 
@@ -25,6 +26,7 @@ const pluginList = ['cpu', 'memory', 'disk', 'process', 'offline'];
 
 class Notifier extends EventEmitter {
   constructor(serverList, pluginList) {
+    super();
     this.serverList = serverList;
     this.pluginList = pluginList;
   }
@@ -44,13 +46,13 @@ class Notifier extends EventEmitter {
           return;
         }
         const hosts = resp.aggregations.host.buckets;
-        for (hostId in hosts) {
+        for (let hostId in hosts) {
           log.debug('호스트: ', hosts[hostId].key);
           const types = hosts[hostId].type.buckets;
-          for (typesId in types) {
+          for (let typesId in types) {
             log.debug('타입: ', hosts[hostId].key + ':' + types[typesId].key);
             const typeInstances = types[typesId].typeInstance.buckets;
-            for (typeInstanceId in typeInstances) {
+            for (let typeInstanceId in typeInstances) {
               log.debug('타입인스턴스: ', hosts[hostId].key +
                 ':' + types[typesId].key + ':' +
                 typeInstances[typeInstanceId].key);
@@ -59,14 +61,14 @@ class Notifier extends EventEmitter {
               let value;
               const grades = typeInstances[typeInstanceId].grade.buckets;
               let timestamp;
-              for (gradeId in grades) {
+              for (let gradeId in grades) {
                 log.debug('중요도: ', hosts[hostId].key + ':' +
                   types[typesId].key + ':' +
                   typeInstances[typeInstanceId].key +
                   ':' + grades[gradeId].key);
                 grade = grades[gradeId].key;
                 const status = grades[gradeId].status.buckets;
-                for (statusId in status) {
+                for (let statusId in status) {
                   log.debug('상태: ', hosts[hostId].key + ':' +
                     types[typesId].key + ':' +
                     typeInstances[typeInstanceId].key + ':' +
@@ -102,5 +104,5 @@ class Notifier extends EventEmitter {
 }
 
 const notifier = new Notifier(serverList, pluginList);
-schedule.scheduleJob(config.get('alert.schedule'), notifier.execute());
+schedule.scheduleJob(config.get('alert.schedule'), () => notifier.execute());
 module.exports = notifier;
